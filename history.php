@@ -58,19 +58,146 @@ while ($row = mysqli_fetch_assoc($result)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction History</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --tcm-green: #1B5E45;
+            --tcm-green-dark: #144534;
+            --tcm-gold: #D4A72C;
+            --tcm-gold-dark: #B88F22;
+        }
 
-<nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between">
-    <span class="navbar-brand fw-bold">⚖️ Law Department Library</span>
+        body {
+            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .navbar-tcm {
+            background-color: var(--tcm-green);
+            padding: 0.9rem 2rem;
+        }
+
+        .navbar-tcm .navbar-brand {
+            color: #fff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .navbar-tcm .navbar-brand img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .navbar-tcm .btn-outline-light {
+            border-color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+        }
+
+        .navbar-tcm .btn-outline-light:hover {
+            background-color: var(--tcm-gold);
+            border-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+        }
+
+        .page-heading {
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .btn-tcm-search {
+            background-color: var(--tcm-green);
+            color: #fff;
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-tcm-search:hover {
+            background-color: var(--tcm-green-dark);
+            color: #fff;
+        }
+
+        .stat-card {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+        }
+
+        .stat-total .fs-2 { color: var(--tcm-green-dark); }
+        .stat-borrowed .fs-2 { color: #b02a37; }
+        .stat-returned .fs-2 { color: var(--tcm-green); }
+
+        .date-group-label {
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .badge-count {
+            background-color: rgba(27, 94, 69, 0.12);
+            color: var(--tcm-green-dark);
+            font-weight: 600;
+        }
+
+        .card-table {
+            border: none;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(27, 94, 69, 0.06);
+        }
+
+        .table thead th {
+            background-color: #d3e6dc !important;
+            color: var(--tcm-green-dark);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border: none;
+            padding: 0.75rem 1rem;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 0.75rem 1rem;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(27, 94, 69, 0.05);
+        }
+
+        .badge-returned {
+            background-color: rgba(27, 94, 69, 0.12);
+            color: var(--tcm-green-dark);
+            font-weight: 600;
+            padding: 0.4em 0.7em;
+        }
+
+        .badge-still-borrowed {
+            background-color: rgba(220, 53, 69, 0.12);
+            color: #b02a37;
+            font-weight: 600;
+            padding: 0.4em 0.7em;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-tcm d-flex justify-content-between">
+    <span class="navbar-brand">
+        <img src="assets/images/tcm_logo.png" alt="TCM Seal">
+        Law Department Library
+    </span>
     <div class="d-flex align-items-center gap-3">
-        <a href="index.php" class="btn btn-outline-light btn-sm">← Back to Menu</a>
-        <a href="logout.php" class="btn btn-outline-danger btn-sm">Logout</a>
+        <a href="index.php" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Menu</a>
+        <a href="logout.php" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
     </div>
 </nav>
 
 <div class="container mt-4">
-    <h4 class="mb-3">Transaction History</h4>
+    <h4 class="page-heading mb-3">Transaction History</h4>
 
     <!-- Search and Filter -->
     <form method="GET" class="row g-2 mb-4">
@@ -91,7 +218,7 @@ while ($row = mysqli_fetch_assoc($result)) {
             </select>
         </div>
         <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100">Search</button>
+            <button type="submit" class="btn btn-tcm-search w-100">Search</button>
         </div>
         <div class="col-md-1">
             <a href="history.php" class="btn btn-outline-secondary w-100">Clear</a>
@@ -111,20 +238,20 @@ while ($row = mysqli_fetch_assoc($result)) {
     ?>
     <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <div class="card text-center p-3">
+            <div class="card stat-card stat-total text-center p-3">
                 <div class="fs-2 fw-bold"><?php echo $total_row['total']; ?></div>
                 <div class="text-muted small">Total Transactions</div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-center p-3 border-danger">
-                <div class="fs-2 fw-bold text-danger"><?php echo $borrowed_row['total']; ?></div>
+            <div class="card stat-card stat-borrowed text-center p-3">
+                <div class="fs-2 fw-bold"><?php echo $borrowed_row['total']; ?></div>
                 <div class="text-muted small">Still Borrowed</div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-center p-3 border-success">
-                <div class="fs-2 fw-bold text-success"><?php echo $returned_row['total']; ?></div>
+            <div class="card stat-card stat-returned text-center p-3">
+                <div class="fs-2 fw-bold"><?php echo $returned_row['total']; ?></div>
                 <div class="text-muted small">Returned</div>
             </div>
         </div>
@@ -137,16 +264,16 @@ while ($row = mysqli_fetch_assoc($result)) {
         <?php foreach ($grouped as $date => $transactions): ?>
             <!-- Date Group Header -->
             <div class="d-flex align-items-center gap-3 mb-2 mt-4">
-                <span class="fw-bold text-dark fs-6">
-                    📅 <?php echo date('F d, Y', strtotime($date)); ?>
+                <span class="date-group-label fs-6">
+                    <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y', strtotime($date)); ?>
                 </span>
-                <span class="badge bg-secondary"><?php echo count($transactions); ?> transaction(s)</span>
+                <span class="badge badge-count"><?php echo count($transactions); ?> transaction(s)</span>
             </div>
 
-            <div class="card mb-2">
+            <div class="card card-table mb-2">
                 <div class="card-body p-0">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>Student</th>
                                 <th>Book</th>
@@ -174,9 +301,9 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 </td>
                                 <td>
                                     <?php if ($t['return_date']): ?>
-                                        <span class="badge bg-success">Returned</span>
+                                        <span class="badge badge-returned">Returned</span>
                                     <?php else: ?>
-                                        <span class="badge bg-danger">Still Borrowed</span>
+                                        <span class="badge badge-still-borrowed">Still Borrowed</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

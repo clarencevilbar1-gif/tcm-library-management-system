@@ -94,26 +94,133 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import Data</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --tcm-green: #1B5E45;
+            --tcm-green-dark: #144534;
+            --tcm-gold: #D4A72C;
+            --tcm-gold-dark: #B88F22;
+        }
 
-<nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between">
-    <span class="navbar-brand fw-bold">⚖️ Law Department Library</span>
+        body {
+            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .navbar-tcm {
+            background-color: var(--tcm-green);
+            padding: 0.9rem 2rem;
+        }
+
+        .navbar-tcm .navbar-brand {
+            color: #fff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .navbar-tcm .navbar-brand img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .navbar-tcm .btn-outline-light {
+            border-color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+        }
+
+        .navbar-tcm .btn-outline-light:hover {
+            background-color: var(--tcm-gold);
+            border-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+        }
+
+        .page-heading {
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .card-tcm {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            overflow: hidden;
+        }
+
+        .card-header-green {
+            background-color: var(--tcm-green);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .card-header-gold {
+            background-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .card-header-notice {
+            background-color: #fff8e6;
+            color: var(--tcm-gold-dark);
+            font-weight: 700;
+            border-bottom: 1px solid #f0e0ad;
+        }
+
+        .card-notice {
+            border: 1px solid #f0e0ad;
+        }
+
+        .btn-tcm-green {
+            background-color: var(--tcm-green);
+            color: #fff;
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-tcm-green:hover {
+            background-color: var(--tcm-green-dark);
+            color: #fff;
+        }
+
+        .btn-tcm-gold {
+            background-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-tcm-gold:hover {
+            background-color: var(--tcm-gold-dark);
+            color: var(--tcm-green-dark);
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-tcm d-flex justify-content-between">
+    <span class="navbar-brand">
+        <img src="assets/images/tcm_logo.png" alt="TCM Seal">
+        Law Department Library
+    </span>
     <div class="d-flex align-items-center gap-3">
-        <a href="index.php" class="btn btn-outline-light btn-sm">← Back to Menu</a>
-        <a href="logout.php" class="btn btn-outline-danger btn-sm">Logout</a>
+        <a href="index.php" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Menu</a>
+        <a href="logout.php" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
     </div>
 </nav>
 
 <div class="container mt-4" style="max-width: 600px;">
-    <h4 class="mb-4">Import Data</h4>
+    <h4 class="page-heading mb-4">Import Data</h4>
 
     <?php echo $message; ?>
 
     <!-- Import Students -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white fw-bold">
-            👤 Import Students
+    <div class="card card-tcm mb-4">
+        <div class="card-header card-header-green">
+            <i class="bi bi-person-badge me-1"></i>Import Students
         </div>
         <div class="card-body">
             <p class="text-muted small mb-3">
@@ -127,15 +234,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 <div class="mb-3">
                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Import Students</button>
+                <button type="submit" class="btn btn-tcm-green w-100">Import Students</button>
             </form>
         </div>
     </div>
 
     <!-- Import Books -->
-    <div class="card mb-4">
-        <div class="card-header bg-success text-white fw-bold">
-            📚 Import Books
+    <div class="card card-tcm mb-4">
+        <div class="card-header card-header-gold">
+            <i class="bi bi-book me-1"></i>Import Books
         </div>
         <div class="card-body">
             <p class="text-muted small mb-3">
@@ -149,15 +256,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 <div class="mb-3">
                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                 </div>
-                <button type="submit" class="btn btn-success w-100">Import Books</button>
+                <button type="submit" class="btn btn-tcm-gold w-100">Import Books</button>
             </form>
         </div>
     </div>
 
     <!-- Instructions -->
-    <div class="card border-warning">
-        <div class="card-header bg-warning text-dark fw-bold">
-            ⚠️ Before Importing
+    <div class="card card-notice">
+        <div class="card-header card-header-notice">
+            <i class="bi bi-exclamation-triangle me-1"></i>Before Importing
         </div>
         <div class="card-body small text-muted">
             <ul class="mb-0">

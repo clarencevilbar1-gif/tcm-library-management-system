@@ -61,8 +61,8 @@ if (isset($_POST['return'])) {
     $message = '<div class="alert alert-success">Book returned successfully!</div>';
 }
 
-// Get all students
-$students = mysqli_query($conn, "SELECT * FROM students");
+// Get all active students only — deactivated students shouldn't be borrowable
+$students = mysqli_query($conn, "SELECT * FROM students WHERE is_active = 1");
 
 // Get available books
 $books = mysqli_query($conn, "SELECT * FROM books WHERE is_available = 1");
@@ -79,16 +79,154 @@ $books_json = json_encode($books_array);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Borrow / Return</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <style>
+        :root {
+            --tcm-green: #1B5E45;
+            --tcm-green-dark: #144534;
+            --tcm-gold: #D4A72C;
+            --tcm-gold-dark: #B88F22;
+        }
 
-<nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between">
-    <span class="navbar-brand fw-bold">⚖️ Law Department Library</span>
+        body {
+            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .navbar-tcm {
+            background-color: var(--tcm-green);
+            padding: 0.9rem 2rem;
+        }
+
+        .navbar-tcm .navbar-brand {
+            color: #fff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .navbar-tcm .navbar-brand img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .navbar-tcm .btn-outline-light {
+            border-color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+        }
+
+        .navbar-tcm .btn-outline-light:hover {
+            background-color: var(--tcm-gold);
+            border-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+        }
+
+        .section-heading {
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .card-tcm {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            overflow: hidden;
+        }
+
+        .card-header-borrow {
+            background-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+            font-weight: 700;
+        }
+
+        .card-header-return {
+            background-color: var(--tcm-green);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        #book-counter {
+            background-color: var(--tcm-green-dark) !important;
+        }
+
+        .btn-tcm-gold {
+            background-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-tcm-gold:hover {
+            background-color: var(--tcm-gold-dark);
+            color: var(--tcm-green-dark);
+        }
+
+        .btn-outline-tcm-gold {
+            border: 1px solid var(--tcm-gold-dark);
+            color: var(--tcm-gold-dark);
+            background: transparent;
+        }
+
+        .btn-outline-tcm-gold:hover {
+            background-color: var(--tcm-gold);
+            color: var(--tcm-green-dark);
+        }
+
+        .btn-tcm-green {
+            background-color: var(--tcm-green);
+            color: #fff;
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-tcm-green:hover {
+            background-color: var(--tcm-green-dark);
+            color: #fff;
+        }
+
+        .card-table {
+            border: none;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+        }
+
+        .table thead th {
+            background-color: var(--tcm-green) !important;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border: none;
+            padding: 0.9rem 1rem;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 0.8rem 1rem;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(27, 94, 69, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-tcm d-flex justify-content-between">
+    <span class="navbar-brand">
+        <img src="assets/images/tcm_logo.png" alt="TCM Seal">
+        Law Department Library
+    </span>
     <div class="d-flex align-items-center gap-3">
-        <a href="index.php" class="btn btn-outline-light btn-sm">← Back to Menu</a>
-        <a href="logout.php" class="btn btn-outline-danger btn-sm">Logout</a>
+        <a href="index.php" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Menu</a>
+        <a href="logout.php" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
     </div>
 </nav>
 
@@ -100,9 +238,9 @@ $books_json = json_encode($books_array);
 
         <!-- Borrow Form -->
         <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    📋 Borrow a Book
+            <div class="card card-tcm h-100">
+                <div class="card-header card-header-borrow d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-journal-arrow-up me-1"></i>Borrow a Book</span>
                     <span id="book-counter" class="badge bg-dark">0 / 3</span>
                 </div>
                 <div class="card-body">
@@ -133,12 +271,12 @@ $books_json = json_encode($books_array);
 
                         <!-- Add Another Book Button -->
                         <div class="mb-3" id="add-btn-container" style="display:none;">
-                            <button type="button" class="btn btn-outline-warning btn-sm w-100" id="add-book-btn">
-                                + Add Another Book
+                            <button type="button" class="btn btn-outline-tcm-gold btn-sm w-100" id="add-book-btn">
+                                <i class="bi bi-plus-lg me-1"></i>Add Another Book
                             </button>
                         </div>
 
-                        <button type="submit" name="borrow" class="btn btn-warning w-100" id="borrow-btn" style="display:none;">
+                        <button type="submit" name="borrow" class="btn btn-tcm-gold w-100" id="borrow-btn" style="display:none;">
                             Borrow Book
                         </button>
 
@@ -149,9 +287,9 @@ $books_json = json_encode($books_array);
 
         <!-- Return Form -->
         <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header bg-success text-white fw-bold">
-                    📚 Return a Book
+            <div class="card card-tcm h-100">
+                <div class="card-header card-header-return">
+                    <i class="bi bi-journal-arrow-down me-1"></i>Return a Book
                 </div>
                 <div class="card-body">
                     <?php
@@ -181,7 +319,7 @@ $books_json = json_encode($books_array);
                             </select>
                         </div>
                         <input type="hidden" name="book_id" value="">
-                        <button type="submit" name="return" class="btn btn-success w-100">
+                        <button type="submit" name="return" class="btn btn-tcm-green w-100">
                             Return Book
                         </button>
                     </form>
@@ -195,11 +333,11 @@ $books_json = json_encode($books_array);
     </div>
 
     <!-- Active Borrowing Records -->
-    <h5 class="mt-5 mb-3">Currently Borrowed Books</h5>
-    <div class="card">
+    <h5 class="section-heading mt-5 mb-3">Currently Borrowed Books</h5>
+    <div class="card card-table">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
-                <thead class="table-dark">
+                <thead>
                     <tr>
                         <th>Student</th>
                         <th>Book</th>
