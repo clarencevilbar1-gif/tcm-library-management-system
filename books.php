@@ -111,10 +111,52 @@ include('db.php');
             letter-spacing: 0.03em;
             border: none;
             padding: 0.9rem 1rem;
+            text-align: center;
+            white-space: nowrap;
         }
 
         .table th, .table td {
             text-align: left;
+        }
+
+        /* Fixed column widths so long titles wrap inside their own column
+           instead of squeezing Author and Availability */
+        .card-table .card-body {
+            overflow-x: auto;
+        }
+
+        .table-books {
+            table-layout: fixed;
+            width: 100%;
+            min-width: 900px;
+        }
+
+        .table-books thead th {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        /* Header alignment follows the data underneath:
+           text columns (Serial No., Title, Author) are left-aligned,
+           short/status columns (Copies, Availability, Actions) are centered */
+        .table.table-books thead th {
+            text-align: left;
+        }
+
+        .table.table-books th.col-center,
+        .table.table-books td.col-center {
+            text-align: center;
+        }
+
+        .table-books tbody td {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .table-books .badge,
+        .table-books .borrowed-count-text {
+            display: inline-block;
+            white-space: nowrap;
         }
 
         .table th.text-actions, .table td.text-actions {
@@ -200,19 +242,18 @@ include('db.php');
 
     <!-- Live Counters -->
     <?php
-    $total_books_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM books"));
-    $borrowed_titles_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM books WHERE available_copies < total_copies"));
+    $counts = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS titles, COALESCE(SUM(total_copies),0) AS total_copies, COALESCE(SUM(total_copies - available_copies),0) AS borrowed_copies FROM books"));
     ?>
     <div class="row g-3 mb-4">
         <div class="col-md-6">
             <div class="card stat-card stat-total text-center p-3">
-                <div class="fs-2 fw-bold"><?php echo $total_books_row['total']; ?></div>
-                <div class="text-muted small">Total Books</div>
+                <div class="fs-2 fw-bold"><?php echo $counts['total_copies']; ?></div>
+                <div class="text-muted small">Total Books <span class="text-secondary">(<?php echo $counts['titles']; ?> title<?php echo $counts['titles'] == 1 ? '' : 's'; ?>)</span></div>
             </div>
         </div>
         <div class="col-md-6">
             <div class="card stat-card stat-borrowed text-center p-3">
-                <div class="fs-2 fw-bold"><?php echo $borrowed_titles_row['total']; ?></div>
+                <div class="fs-2 fw-bold"><?php echo $counts['borrowed_copies']; ?></div>
                 <div class="text-muted small">Currently Borrowed</div>
             </div>
         </div>
@@ -243,15 +284,23 @@ include('db.php');
     <!-- Books Table -->
     <div class="card card-table">
         <div class="card-body p-0">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-books">
+                <colgroup>
+                    <col style="width: 11%">
+                    <col style="width: 32%">
+                    <col style="width: 14%">
+                    <col style="width: 8%">
+                    <col style="width: 25%">
+                    <col style="width: 10%">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Serial No.</th>
                         <th>Title</th>
                         <th>Author</th>
-                        <th>Copies</th>
-                        <th>Availability</th>
-                        <th class="text-actions">Actions</th>
+                        <th class="col-center">Copies</th>
+                        <th class="col-center">Availability</th>
+                        <th class="text-actions col-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -285,9 +334,9 @@ include('db.php');
                             <td>{$row['serial_no']}</td>
                             <td>{$row['title']}</td>
                             <td>{$row['author']}</td>
-                            <td>{$row['available_copies']} / {$row['total_copies']}</td>
-                            <td>{$availability}</td>
-                            <td class='text-actions'>
+                            <td class='col-center'>{$row['available_copies']} / {$row['total_copies']}</td>
+                            <td class='col-center'>{$availability}</td>
+                            <td class='text-actions col-center'>
                                 <a href='edit_book.php?id={$row['id']}' class='btn btn-sm btn-edit'>Edit</a>
                             </td>
                         </tr>";

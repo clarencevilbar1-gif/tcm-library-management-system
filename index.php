@@ -142,8 +142,8 @@ include('db.php');
 
         <div class="col-md-4">
             <a href="borrow.php" class="menu-tile">
-                <div class="tile-icon"><i class="bi bi-arrow-left-right"></i></div>
-                <div class="tile-label">Borrow / Return</div>
+                <div class="tile-icon"><i class="bi bi-journal-arrow-up"></i></div>
+                <div class="tile-label">Borrow Book</div>
             </a>
         </div>
 
@@ -158,6 +158,13 @@ include('db.php');
             <a href="history.php" class="menu-tile">
                 <div class="tile-icon"><i class="bi bi-clock-history"></i></div>
                 <div class="tile-label">Transaction History</div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="return.php" class="menu-tile">
+                <div class="tile-icon"><i class="bi bi-journal-arrow-down"></i></div>
+                <div class="tile-label">Return Book</div>
             </a>
         </div>
 

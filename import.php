@@ -57,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                     $title = mysqli_real_escape_string($conn, trim($row[0]));
                     $author = mysqli_real_escape_string($conn, trim($row[1]));
                     $serial_no = mysqli_real_escape_string($conn, trim($row[2]));
+                    $copies = isset($row[3]) && trim($row[3]) !== '' ? intval($row[3]) : 1;
+                    if ($copies < 1) $copies = 1;
 
                     if (empty($title) || empty($serial_no)) {
                         $skipped++;
@@ -70,8 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                         continue;
                     }
 
-                    mysqli_query($conn, "INSERT INTO books (title, author, serial_no, is_available) 
-                                        VALUES ('$title', '$author', '$serial_no', 1)");
+                    mysqli_query($conn, "INSERT INTO books (title, author, serial_no, total_copies, available_copies, is_available) 
+                                        VALUES ('$title', '$author', '$serial_no', $copies, $copies, 1)");
                     $success++;
                 }
             }
@@ -249,7 +251,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 Upload an Excel or CSV file with columns in this exact order:<br>
                 <strong>Column A:</strong> Title &nbsp;|&nbsp;
                 <strong>Column B:</strong> Author &nbsp;|&nbsp;
-                <strong>Column C:</strong> Serial Number
+                <strong>Column C:</strong> Serial Number &nbsp;|&nbsp;
+                <strong>Column D:</strong> Number of Copies <span class="text-muted">(optional — defaults to 1)</span>
             </p>
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="type" value="books">

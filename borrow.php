@@ -3,12 +3,15 @@ include('auth.php');
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 include('db.php');
+include('loan_functions.php');
 
 $message = '';
+$selected_student = 0;
 
 // Handle Borrow
 if (isset($_POST['borrow'])) {
     $student_id = intval($_POST['student_id']);
+    $selected_student = $student_id;
     $book_ids = $_POST['book_ids'] ?? [];
     $borrow_days = intval($_POST['borrow_days'] ?? 1);
 
@@ -35,17 +38,28 @@ if (isset($_POST['borrow'])) {
 
         foreach ($book_ids as $book_id) {
             $book_id = intval($book_id);
-            $book_check = mysqli_query($conn, "SELECT * FROM books WHERE id = $book_id AND is_available = 1");
-            if (mysqli_num_rows($book_check) == 0) {
+
+            // A student can't hold two copies of the same title at once
+            $dup_check = mysqli_query($conn, "SELECT id FROM borrowing WHERE student_id = $student_id AND book_id = $book_id AND return_date IS NULL");
+            if (mysqli_num_rows($dup_check) > 0) {
+                $errors[] = "This student already has a copy of Book ID $book_id borrowed.";
+                continue;
+            }
+
+            // Take one copy atomically; fails (0 rows) if no copies are left
+            mysqli_query($conn, "UPDATE books SET available_copies = available_copies - 1, is_available = (available_copies > 0) WHERE id = $book_id AND available_copies > 0");
+            if (mysqli_affected_rows($conn) == 0) {
                 $errors[] = "Book ID $book_id is no longer available.";
+                continue;
+            }
+
+            $insert_ok = mysqli_query($conn, "INSERT INTO borrowing (student_id, book_id, borrow_date, borrow_days, due_date) VALUES ($student_id, $book_id, '$date', $borrow_days, '$due_date')");
+            if ($insert_ok && mysqli_affected_rows($conn) > 0) {
+                $success_count++;
             } else {
-                $insert_ok = mysqli_query($conn, "INSERT INTO borrowing (student_id, book_id, borrow_date, borrow_days, due_date) VALUES ($student_id, $book_id, '$date', $borrow_days, '$due_date')");
-                if ($insert_ok && mysqli_affected_rows($conn) > 0) {
-                    mysqli_query($conn, "UPDATE books SET is_available = 0 WHERE id = $book_id");
-                    $success_count++;
-                } else {
-                    $errors[] = "Could not record borrowing for Book ID $book_id. Please try again.";
-                }
+                // Put the copy back if the record could not be saved
+                mysqli_query($conn, "UPDATE books SET available_copies = LEAST(available_copies + 1, total_copies), is_available = 1 WHERE id = $book_id");
+                $errors[] = "Could not record borrowing for Book ID $book_id. Please try again.";
             }
         }
 
@@ -58,37 +72,23 @@ if (isset($_POST['borrow'])) {
     }
 }
 
-// Handle Return
-if (isset($_POST['return'])) {
-    $borrowing_id = intval($_POST['borrowing_id']);
-    $book_id = intval($_POST['book_id']);
-
-    $date = date('Y-m-d');
-    mysqli_query($conn, "UPDATE borrowing SET return_date = '$date' WHERE id = $borrowing_id AND return_date IS NULL");
-
-    if (mysqli_affected_rows($conn) > 0) {
-        mysqli_query($conn, "UPDATE books SET is_available = 1 WHERE id = $book_id");
-        $message = '<div class="alert alert-success">Book returned successfully!</div>';
-    } else {
-        $message = '<div class="alert alert-warning">This record was already returned or could not be found.</div>';
-    }
-}
-
 $students = mysqli_query($conn, "SELECT * FROM students WHERE is_active = 1");
 
-$books = mysqli_query($conn, "SELECT * FROM books WHERE is_available = 1");
+$books = mysqli_query($conn, "SELECT * FROM books WHERE available_copies > 0 ORDER BY serial_no ASC");
 $books_array = [];
 while ($b = mysqli_fetch_assoc($books)) {
     $books_array[] = $b;
 }
 $books_json = json_encode($books_array);
+
+$loans = get_active_loans($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Borrow / Return</title>
+    <title>Borrow Book</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
@@ -226,6 +226,114 @@ $books_json = json_encode($books_array);
         .table tbody tr:hover {
             background-color: rgba(75, 46, 131, 0.05);
         }
+
+        /* ---- Borrow Book page layout ---- */
+        .page-heading {
+            color: var(--tcm-purple-dark);
+            font-weight: 700;
+        }
+
+        .page-subheading {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .btn-outline-tcm-purple {
+            border: 1px solid var(--tcm-purple);
+            color: var(--tcm-purple);
+            background: transparent;
+            font-weight: 600;
+        }
+
+        .btn-outline-tcm-purple:hover {
+            background-color: var(--tcm-purple);
+            color: #fff;
+        }
+
+        .card-header-loans {
+            background-color: var(--tcm-purple);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .card-header-loans .badge {
+            background-color: var(--tcm-gold) !important;
+            color: var(--tcm-purple-dark);
+        }
+
+        .loan-filter-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 1rem;
+            background: #faf8fd;
+            border-bottom: 1px solid #eee7f5;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .loan-filter-bar a {
+            color: var(--tcm-purple);
+            text-decoration: none;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .loan-filter-bar a:hover {
+            text-decoration: underline;
+        }
+
+        .loans-scroll {
+            max-height: 560px;
+            overflow: auto;
+        }
+
+        .table-loans {
+            table-layout: fixed;
+            width: 100%;
+            min-width: 700px;
+            margin-bottom: 0;
+        }
+
+        .table-loans thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: var(--tcm-purple) !important;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border: none;
+            padding: 0.75rem;
+            line-height: 1.2;
+            text-align: left;
+        }
+
+        .table-loans tbody td {
+            vertical-align: middle;
+            padding: 0.7rem 0.75rem;
+            font-size: 0.9rem;
+            text-align: left;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .table-loans .student-no {
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+
+        .table-loans td.nowrap {
+            white-space: nowrap;
+        }
+
+        .table-loans th.col-center,
+        .table-loans td.col-center {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -241,14 +349,24 @@ $books_json = json_encode($books_array);
     </div>
 </nav>
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="page-heading mb-1"><i class="bi bi-journal-arrow-up me-2"></i>Borrow Book</h4>
+            <p class="page-subheading mb-0">Select a student to borrow books. The table shows that student's current records.</p>
+        </div>
+        <a href="return.php" class="btn btn-outline-tcm-purple btn-sm">
+            <i class="bi bi-journal-arrow-down me-1"></i>Go to Return Book
+        </a>
+    </div>
 
     <?php echo $message; ?>
 
     <div class="row g-4">
 
-        <div class="col-md-6">
-            <div class="card card-tcm h-100">
+        <div class="col-xl-4">
+            <div class="card card-tcm">
                 <div class="card-header card-header-borrow d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-journal-arrow-up me-1"></i>Borrow a Book</span>
                     <span id="book-counter" class="badge bg-dark">0 / 3</span>
@@ -299,107 +417,22 @@ $books_json = json_encode($books_array);
             </div>
         </div>
 
-        <div class="col-md-6">
-            <div class="card card-tcm h-100">
-                <div class="card-header card-header-return">
-                    <i class="bi bi-journal-arrow-down me-1"></i>Return a Book
+        <div class="col-xl-8">
+            <div class="card card-tcm">
+                <div class="card-header card-header-loans d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-check me-1"></i>Currently Borrowed Books</span>
+                    <span id="loan-count" class="badge"><?php echo count($loans) . (count($loans) == 1 ? ' record' : ' records'); ?></span>
                 </div>
-                <div class="card-body">
-                    <?php
-                    $borrowed = mysqli_query($conn, "
-                        SELECT borrowing.id, borrowing.book_id, borrowing.borrow_date,
-                               students.name as student_name,
-                               books.title as book_title
-                        FROM borrowing
-                        JOIN students ON borrowing.student_id = students.id
-                        JOIN books ON borrowing.book_id = books.id
-                        WHERE borrowing.return_date IS NULL
-                        ORDER BY borrowing.borrow_date ASC
-                    ");
-
-                    if (mysqli_num_rows($borrowed) > 0): ?>
-                    <form method="POST">
-                        <div class="mb-3">
-                            <label class="form-label">Select Borrowed Book to Return</label>
-                            <select name="borrowing_id" class="form-select" required id="return-select">
-                                <option value="">-- Choose Record --</option>
-                                <?php while ($br = mysqli_fetch_assoc($borrowed)): ?>
-                                <option value="<?php echo $br['id']; ?>" 
-                                        data-bookid="<?php echo $br['book_id']; ?>">
-                                    <?php echo $br['student_name'] . ' — ' . $br['book_title'] . ' (since ' . $br['borrow_date'] . ')'; ?>
-                                </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                        <input type="hidden" name="book_id" value="">
-                        <button type="submit" name="return" class="btn btn-tcm-purple w-100">
-                            Return Book
-                        </button>
-                    </form>
-                    <?php else: ?>
-                        <p class="text-muted text-center mt-4">No books are currently borrowed.</p>
-                    <?php endif; ?>
+                <div class="loan-filter-bar">
+                    <span id="loan-filter-label">Showing all students</span>
+                    <a href="#" id="loan-clear" style="display:none;">Show all students</a>
+                </div>
+                <div class="loans-scroll">
+                    <?php render_loans_table($loans, 'No active borrowing records.'); ?>
                 </div>
             </div>
         </div>
 
-    </div>
-
-    <h5 class="section-heading mt-5 mb-3">Currently Borrowed Books</h5>
-    <div class="card card-table">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Student</th>
-                        <th>Book</th>
-                        <th>Serial No.</th>
-                        <th>Date Borrowed</th>
-                        <th>Due Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php
-                $active = mysqli_query($conn, "
-                    SELECT students.name as student_name,
-                           students.student_no,
-                           books.title as book_title,
-                           books.serial_no,
-                           borrowing.borrow_date,
-                           borrowing.due_date
-                    FROM borrowing
-                    JOIN students ON borrowing.student_id = students.id
-                    JOIN books ON borrowing.book_id = books.id
-                    WHERE borrowing.return_date IS NULL
-                    ORDER BY borrowing.borrow_date ASC
-                ");
-
-                if (mysqli_num_rows($active) > 0) {
-                    while ($row = mysqli_fetch_assoc($active)) {
-                        $today = date('Y-m-d');
-                        if ($row['due_date'] && $today > $row['due_date']) {
-                            $status_badge = '<span class="badge bg-danger">Overdue</span>';
-                        } else {
-                            $status_badge = '<span class="badge bg-success">Active</span>';
-                        }
-
-                        echo "<tr>
-                            <td>{$row['student_name']} ({$row['student_no']})</td>
-                            <td>{$row['book_title']}</td>
-                            <td>{$row['serial_no']}</td>
-                            <td>{$row['borrow_date']}</td>
-                            <td>{$row['due_date']}</td>
-                            <td>$status_badge</td>
-                        </tr>";
-                    }
-                } else {
-                    echo "<tr><td colspan='6' class='text-center text-muted py-3'>No active borrowing records.</td></tr>";
-                }
-                ?>
-                </tbody>
-            </table>
-        </div>
     </div>
 </div>
 
@@ -414,22 +447,42 @@ $(document).ready(function() {
         placeholder: '-- Search Student by name or ID --',
         allowClear: true
     });
-    $('select[name="book_id"]').select2({
-        theme: 'bootstrap-5',
-        placeholder: '-- Search Book by title or serial no --',
-        allowClear: true
+    // Show only the selected student's records in the Currently Borrowed table
+    function filterLoans(studentId) {
+        var visible = 0;
+        $('#loans-body tr.loan-row').each(function() {
+            var show = !studentId || String($(this).data('student')) === String(studentId);
+            $(this).toggle(show);
+            if (show) visible++;
+        });
+
+        $('#loan-count').text(visible + (visible === 1 ? ' record' : ' records'));
+
+        if (visible === 0) {
+            $('#loans-empty td').text(studentId ? 'This student has no current borrowing records.' : 'No active borrowing records.');
+            $('#loans-empty').show();
+        } else {
+            $('#loans-empty').hide();
+        }
+
+        if (studentId) {
+            var name = $('#student-select option:selected').text().replace(/\s+/g, ' ').trim();
+            $('#loan-filter-label').empty().append('Showing records of: ').append($('<strong></strong>').text(name));
+            $('#loan-clear').show();
+        } else {
+            $('#loan-filter-label').text('Showing all students');
+            $('#loan-clear').hide();
+        }
+    }
+
+    $('#loan-clear').on('click', function(e) {
+        e.preventDefault();
+        $('#student-select').val(null).trigger('change');
     });
-    $('select[name="borrowing_id"]').select2({
-        theme: 'bootstrap-5',
-        placeholder: '-- Search borrowed record --',
-        allowClear: true
-    });
-    $('#return-select').on('change', function() {
-        var selected = $(this).find(':selected');
-        $('input[name="book_id"]').val(selected.data('bookid'));
-    });
+
     $('#student-select').on('change', function() {
         var studentId = $(this).val();
+        filterLoans(studentId);
         if (!studentId) {
             $('#book-rows').html('');
             $('#add-btn-container').hide();
@@ -532,7 +585,7 @@ $(document).ready(function() {
             availableBooks.forEach(function(book) {
                 var isSelectedElsewhere = selected.includes(String(book.id)) && String(book.id) !== thisVal;
                 if (!isSelectedElsewhere) {
-                    options += '<option value="' + book.id + '"' + (String(book.id) === thisVal ? ' selected' : '') + '>' + book.serial_no + ' — ' + book.title + '</option>';
+                    options += '<option value="' + book.id + '"' + (String(book.id) === thisVal ? ' selected' : '') + '>' + book.serial_no + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
                 }
             });
 
@@ -548,7 +601,7 @@ $(document).ready(function() {
         availableBooks.forEach(function(book) {
             var selected = getSelectedBookIds();
             if (!selected.includes(String(book.id))) {
-                options += '<option value="' + book.id + '">' + book.serial_no + ' — ' + book.title + '</option>';
+                options += '<option value="' + book.id + '">' + book.serial_no + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
             }
         });
 
@@ -585,6 +638,10 @@ $(document).ready(function() {
             $('#add-btn-container').show();
         }
     }
+
+    <?php if ($selected_student): ?>
+    $('#student-select').val('<?php echo $selected_student; ?>').trigger('change');
+    <?php endif; ?>
 });
 </script></body>
 </html>

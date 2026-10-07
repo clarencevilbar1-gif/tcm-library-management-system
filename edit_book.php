@@ -7,14 +7,37 @@ $id = $_GET['id'];
 $result = mysqli_query($conn, "SELECT * FROM books WHERE id = $id");
 $book = mysqli_fetch_assoc($result);
 
+// Copies currently out (based on real borrowing records)
+$out_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS total FROM borrowing WHERE book_id = $id AND return_date IS NULL"));
+$copies_out = (int)$out_row['total'];
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = mysqli_real_escape_string($conn, $_POST['title']);
     $author = mysqli_real_escape_string($conn, $_POST['author']);
     $serial_no = mysqli_real_escape_string($conn, $_POST['serial_no']);
+    $total_copies = intval($_POST['total_copies'] ?? 1);
 
-    mysqli_query($conn, "UPDATE books SET title='$title', author='$author', serial_no='$serial_no' WHERE id=$id");
-    header('Location: books.php');
-    exit();
+    if ($total_copies < 1) {
+        $error = 'Number of copies must be at least 1.';
+    } elseif ($total_copies < $copies_out) {
+        $error = "Cannot set total copies below $copies_out — that many copies are currently borrowed.";
+    } else {
+        $available_copies = $total_copies - $copies_out;
+        $is_available = $available_copies > 0 ? 1 : 0;
+
+        mysqli_query($conn, "UPDATE books SET title='$title', author='$author', serial_no='$serial_no',
+                             total_copies=$total_copies, available_copies=$available_copies, is_available=$is_available
+                             WHERE id=$id");
+        header('Location: books.php');
+        exit();
+    }
+
+    // keep what the user typed if validation failed
+    $book['title'] = $_POST['title'];
+    $book['author'] = $_POST['author'];
+    $book['serial_no'] = $_POST['serial_no'];
+    $book['total_copies'] = $_POST['total_copies'];
 }
 ?>
 <!DOCTYPE html>
@@ -106,6 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="container mt-4" style="max-width: 500px;">
     <h4 class="page-heading mb-4"><i class="bi bi-pencil-square me-2"></i>Edit Book</h4>
     <div class="card card-tcm p-4">
+        <?php if ($error): ?>
+            <div class="alert alert-danger py-2"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
         <form method="POST">
             <div class="mb-3">
                 <label class="form-label">Title</label>
@@ -118,6 +144,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="mb-3">
                 <label class="form-label">Serial Number</label>
                 <input type="text" name="serial_no" class="form-control" value="<?php echo htmlspecialchars($book['serial_no']); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Total Copies</label>
+                <input type="number" name="total_copies" class="form-control" min="<?php echo max(1, $copies_out); ?>" value="<?php echo (int)$book['total_copies']; ?>" required>
+                <div class="form-text">Currently borrowed: <?php echo $copies_out; ?> &nbsp;|&nbsp; Available now: <?php echo (int)$book['total_copies'] - $copies_out; ?></div>
             </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-tcm-gold w-100">Save Changes</button>
