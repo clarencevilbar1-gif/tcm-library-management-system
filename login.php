@@ -39,14 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -70,6 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .login-title {
             font-weight: 700;
             color: #1a1a1a;
+            margin-bottom: 0.15rem;
+        }
+
+        .login-department {
+            font-weight: 600;
+            color: var(--tcm-purple-dark);
+            font-size: 1.1rem;
             margin-bottom: 0.25rem;
         }
 
@@ -80,10 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .login-card {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             border-radius: 16px;
             padding: 2rem 1.75rem;
-            box-shadow: 0 20px 45px rgba(27, 94, 69, 0.25);
+            box-shadow: 0 20px 45px rgba(75, 46, 131, 0.25);
         }
 
         .form-label-custom {
@@ -107,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--tcm-green);
+            color: var(--tcm-purple);
             opacity: 0.7;
         }
 
@@ -117,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border: none;
             border-radius: 10px;
             font-size: 0.95rem;
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .input-group-custom input:focus {
@@ -131,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             top: 50%;
             transform: translateY(-50%);
             cursor: pointer;
-            color: var(--tcm-green);
+            color: var(--tcm-purple);
             opacity: 0.7;
             border: none;
             background: none;
@@ -142,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             width: 100%;
             background-color: var(--tcm-gold);
             border: none;
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
             padding: 0.7rem;
             border-radius: 10px;
@@ -152,13 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .btn-signin:hover {
             background-color: var(--tcm-gold-dark);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .login-footer {
             margin-top: 1.5rem;
             font-size: 0.8rem;
-            color: var(--tcm-green);
+            color: var(--tcm-purple);
         }
     </style>
 </head>
@@ -167,7 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="login-wrapper">
 
     <img src="assets/images/tcm_logo.png" alt="TCM Seal" class="school-logo">
-    <h4 class="login-title">The College of Law Library</h4>
+    <h4 class="login-title">The College of Maasin</h4>
+    <h5 class="login-department">College of Law Library</h5>
     <p class="login-subtitle">Sign in to your staff account</p>
 
     <div class="login-card">

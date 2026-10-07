@@ -12,20 +12,20 @@ include('db.php');
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -51,50 +51,59 @@ include('db.php');
         .navbar-tcm .btn-outline-light:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
+
+        .stat-card {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.08);
+        }
+
+        .stat-total .fs-2 { color: var(--tcm-purple-dark); }
+        .stat-borrowed .fs-2 { color: #b02a37; }
 
         .search-bar .form-control {
             border-radius: 8px 0 0 8px;
         }
 
         .btn-tcm-search {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             border-radius: 0 8px 8px 0;
         }
 
         .btn-tcm-search:hover {
-            background-color: var(--tcm-green-dark);
+            background-color: var(--tcm-purple-dark);
             color: #fff;
         }
 
         .btn-tcm-add {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             border: none;
         }
 
         .btn-tcm-add:hover {
             background-color: var(--tcm-gold-dark);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .card-table {
             border: none;
             border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.08);
         }
 
         .table thead th {
-            background-color: var(--tcm-green) !important;
+            background-color: var(--tcm-purple) !important;
             color: #fff;
             font-weight: 600;
             font-size: 0.85rem;
@@ -105,6 +114,10 @@ include('db.php');
         }
 
         .table th, .table td {
+            text-align: left;
+        }
+
+        .table th.text-actions, .table td.text-actions {
             text-align: center;
         }
 
@@ -114,12 +127,12 @@ include('db.php');
         }
 
         .table tbody tr:hover {
-            background-color: rgba(27, 94, 69, 0.05);
+            background-color: rgba(75, 46, 131, 0.05);
         }
 
         .badge-available {
-            background-color: rgba(27, 94, 69, 0.12);
-            color: var(--tcm-green-dark);
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #1e8449;
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
@@ -131,6 +144,12 @@ include('db.php');
             padding: 0.4em 0.7em;
         }
 
+        .borrowed-count-text {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-left: 0.4rem;
+        }
+
         .btn-edit {
             background-color: transparent;
             border: 1px solid var(--tcm-gold);
@@ -139,11 +158,11 @@ include('db.php');
 
         .btn-edit:hover {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .modal-header {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             border-radius: 0.5rem 0.5rem 0 0;
         }
@@ -153,13 +172,13 @@ include('db.php');
         }
 
         .modal-footer .btn-success {
-            background-color: var(--tcm-green);
-            border-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
+            border-color: var(--tcm-purple);
         }
 
         .modal-footer .btn-success:hover {
-            background-color: var(--tcm-green-dark);
-            border-color: var(--tcm-green-dark);
+            background-color: var(--tcm-purple-dark);
+            border-color: var(--tcm-purple-dark);
         }
     </style>
 </head>
@@ -178,6 +197,26 @@ include('db.php');
 
 <div class="container mt-4">
     <h4 class="page-heading mb-3">Book Inventory</h4>
+
+    <!-- Live Counters -->
+    <?php
+    $total_books_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM books"));
+    $borrowed_titles_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM books WHERE available_copies < total_copies"));
+    ?>
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card stat-card stat-total text-center p-3">
+                <div class="fs-2 fw-bold"><?php echo $total_books_row['total']; ?></div>
+                <div class="text-muted small">Total Books</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card stat-card stat-borrowed text-center p-3">
+                <div class="fs-2 fw-bold"><?php echo $borrowed_titles_row['total']; ?></div>
+                <div class="text-muted small">Currently Borrowed</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Search Form -->
     <form method="GET" class="d-flex gap-2 mb-4 search-bar">
@@ -210,8 +249,9 @@ include('db.php');
                         <th>Serial No.</th>
                         <th>Title</th>
                         <th>Author</th>
+                        <th>Copies</th>
                         <th>Availability</th>
-                        <th>Actions</th>
+                        <th class="text-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -223,31 +263,37 @@ include('db.php');
                     $query = "SELECT * FROM books 
                               WHERE title LIKE '%$search_safe%' 
                               OR author LIKE '%$search_safe%'
-                              OR serial_no LIKE '%$search_safe%'";
+                              OR serial_no LIKE '%$search_safe%'
+                              ORDER BY serial_no ASC";
                 } else {
-                    $query = "SELECT * FROM books";
+                    $query = "SELECT * FROM books ORDER BY serial_no ASC";
                 }
 
                 $result = mysqli_query($conn, $query);
 
                 if (mysqli_num_rows($result) > 0) {
                     while ($row = mysqli_fetch_assoc($result)) {
-                        $availability = $row['is_available'] == 1
+                        $borrowed_count = $row['total_copies'] - $row['available_copies'];
+
+                        $status_badge = $row['available_copies'] > 0
                             ? '<span class="badge badge-available">Available</span>'
                             : '<span class="badge badge-borrowed">Borrowed</span>';
+
+                        $availability = $status_badge . ' <span class="borrowed-count-text">| Currently Borrowed: ' . $borrowed_count . '</span>';
 
                         echo "<tr>
                             <td>{$row['serial_no']}</td>
                             <td>{$row['title']}</td>
                             <td>{$row['author']}</td>
+                            <td>{$row['available_copies']} / {$row['total_copies']}</td>
                             <td>{$availability}</td>
-                            <td>
+                            <td class='text-actions'>
                                 <a href='edit_book.php?id={$row['id']}' class='btn btn-sm btn-edit'>Edit</a>
                             </td>
                         </tr>";
                     }
                 } else {
-                    echo "<tr><td colspan='4' class='text-center text-muted py-3'>No books found.</td></tr>";
+                    echo "<tr><td colspan='6' class='text-center text-muted py-3'>No books found.</td></tr>";
                 }
                 ?>
                 </tbody>
@@ -277,6 +323,10 @@ include('db.php');
                 <div class="mb-3">
                     <label class="form-label">Serial Number</label>
                     <input type="text" name="serial_no" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Number of Copies</label>
+                    <input type="number" name="total_copies" class="form-control" min="1" value="1" required>
                 </div>
             </div>
             <div class="modal-footer">

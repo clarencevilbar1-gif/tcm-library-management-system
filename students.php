@@ -15,20 +15,20 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -54,11 +54,11 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         .navbar-tcm .btn-outline-light:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
@@ -67,37 +67,37 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .btn-tcm-search {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             border-radius: 0 8px 8px 0;
         }
 
         .btn-tcm-search:hover {
-            background-color: var(--tcm-green-dark);
+            background-color: var(--tcm-purple-dark);
             color: #fff;
         }
 
         .btn-tcm-add {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             border: none;
         }
 
         .btn-tcm-add:hover {
             background-color: var(--tcm-gold-dark);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .card-table {
             border: none;
             border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.08);
         }
 
         .table thead th {
-            background-color: var(--tcm-green) !important;
+            background-color: var(--tcm-purple) !important;
             color: #fff;
             font-weight: 600;
             font-size: 0.85rem;
@@ -117,7 +117,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .table tbody tr:hover {
-            background-color: rgba(27, 94, 69, 0.05);
+            background-color: rgba(75, 46, 131, 0.05);
         }
 
         .status-dot-wrap {
@@ -160,8 +160,8 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .badge-can-borrow {
-            background-color: rgba(27, 94, 69, 0.12);
-            color: var(--tcm-green-dark);
+            background-color: rgba(75, 46, 131, 0.12);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
@@ -174,8 +174,8 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .badge-active {
-            background-color: rgba(27, 94, 69, 0.12);
-            color: var(--tcm-green-dark);
+            background-color: rgba(75, 46, 131, 0.12);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
@@ -188,14 +188,14 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .filter-tabs .btn {
-            border: 1px solid #d5ddd9;
+            border: 1px solid #dcd3e6;
             color: #495057;
             background-color: #fff;
         }
 
         .filter-tabs .btn.active-tab {
-            background-color: var(--tcm-green);
-            border-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
+            border-color: var(--tcm-purple);
             color: #fff;
         }
 
@@ -212,12 +212,12 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 
         .btn-reactivate {
             background-color: transparent;
-            border: 1px solid var(--tcm-green);
-            color: var(--tcm-green);
+            border: 1px solid var(--tcm-purple);
+            color: var(--tcm-purple);
         }
 
         .btn-reactivate:hover {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
         }
 
@@ -229,7 +229,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 
         .btn-edit:hover {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .btn-remove {
@@ -244,7 +244,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .modal-header {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             border-radius: 0.5rem 0.5rem 0 0;
         }
@@ -254,13 +254,13 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         }
 
         .modal-footer .btn-success {
-            background-color: var(--tcm-green);
-            border-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
+            border-color: var(--tcm-purple);
         }
 
         .modal-footer .btn-success:hover {
-            background-color: var(--tcm-green-dark);
-            border-color: var(--tcm-green-dark);
+            background-color: var(--tcm-purple-dark);
+            border-color: var(--tcm-purple-dark);
         }
     </style>
 </head>

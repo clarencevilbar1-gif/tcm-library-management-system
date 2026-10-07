@@ -30,6 +30,7 @@ $query = "
     SELECT 
         borrowing.id,
         borrowing.borrow_date,
+        borrowing.due_date,
         borrowing.return_date,
         students.name as student_name,
         students.student_no,
@@ -61,20 +62,20 @@ while ($row = mysqli_fetch_assoc($result)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -100,44 +101,44 @@ while ($row = mysqli_fetch_assoc($result)) {
         .navbar-tcm .btn-outline-light:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
         .btn-tcm-search {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             font-weight: 600;
             border: none;
         }
 
         .btn-tcm-search:hover {
-            background-color: var(--tcm-green-dark);
+            background-color: var(--tcm-purple-dark);
             color: #fff;
         }
 
         .stat-card {
             border: none;
             border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.08);
         }
 
-        .stat-total .fs-2 { color: var(--tcm-green-dark); }
+        .stat-total .fs-2 { color: var(--tcm-purple-dark); }
         .stat-borrowed .fs-2 { color: #b02a37; }
-        .stat-returned .fs-2 { color: var(--tcm-green); }
+        .stat-returned .fs-2 { color: var(--tcm-purple); }
 
         .date-group-label {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
         .badge-count {
-            background-color: rgba(27, 94, 69, 0.12);
-            color: var(--tcm-green-dark);
+            background-color: rgba(75, 46, 131, 0.12);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
         }
 
@@ -145,12 +146,12 @@ while ($row = mysqli_fetch_assoc($result)) {
             border: none;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(27, 94, 69, 0.06);
+            box-shadow: 0 2px 10px rgba(75, 46, 131, 0.06);
         }
 
         .table thead th {
-            background-color: #d3e6dc !important;
-            color: var(--tcm-green-dark);
+            background-color: #e2d9ee !important;
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -165,12 +166,12 @@ while ($row = mysqli_fetch_assoc($result)) {
         }
 
         .table tbody tr:hover {
-            background-color: rgba(27, 94, 69, 0.05);
+            background-color: rgba(75, 46, 131, 0.05);
         }
 
         .badge-returned {
-            background-color: rgba(27, 94, 69, 0.12);
-            color: var(--tcm-green-dark);
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #1e8449;
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
@@ -178,6 +179,12 @@ while ($row = mysqli_fetch_assoc($result)) {
         .badge-still-borrowed {
             background-color: rgba(220, 53, 69, 0.12);
             color: #b02a37;
+            font-weight: 600;
+            padding: 0.4em 0.7em;
+        }
+        .badge-overdue {
+            background-color: rgba(184, 28, 28, 0.9);
+            color: #fff;
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
@@ -279,6 +286,7 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 <th>Book</th>
                                 <th>Serial No.</th>
                                 <th>Date Borrowed</th>
+                                <th>Due Date</th>
                                 <th>Date Returned</th>
                                 <th>Status</th>
                             </tr>
@@ -295,13 +303,22 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 <td><?php echo htmlspecialchars($t['serial_no']); ?></td>
                                 <td><?php echo date('M d, Y', strtotime($t['borrow_date'])); ?></td>
                                 <td>
+                                    <?php echo $t['due_date'] 
+                                        ? date('M d, Y', strtotime($t['due_date'])) 
+                                        : '<span class="text-muted">—</span>'; ?>
+                                </td>
+                                <td>
                                     <?php echo $t['return_date'] 
                                         ? date('M d, Y', strtotime($t['return_date'])) 
                                         : '<span class="text-muted">—</span>'; ?>
                                 </td>
                                 <td>
-                                    <?php if ($t['return_date']): ?>
+                                    <?php 
+                                    $today = date('Y-m-d');
+                                    if ($t['return_date']): ?>
                                         <span class="badge badge-returned">Returned</span>
+                                    <?php elseif ($t['due_date'] && $today > $t['due_date']): ?>
+                                        <span class="badge badge-overdue">Overdue</span>
                                     <?php else: ?>
                                         <span class="badge badge-still-borrowed">Still Borrowed</span>
                                     <?php endif; ?>

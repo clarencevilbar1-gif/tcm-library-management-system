@@ -97,20 +97,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -136,30 +136,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
         .navbar-tcm .btn-outline-light:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
         .card-tcm {
             border: none;
             border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.08);
             overflow: hidden;
         }
 
         .card-header-green {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             font-weight: 700;
         }
 
         .card-header-gold {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
@@ -174,28 +174,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
             border: 1px solid #f0e0ad;
         }
 
-        .btn-tcm-green {
-            background-color: var(--tcm-green);
+        .btn-tcm-purple {
+            background-color: var(--tcm-purple);
             color: #fff;
             font-weight: 600;
             border: none;
         }
 
-        .btn-tcm-green:hover {
-            background-color: var(--tcm-green-dark);
+        .btn-tcm-purple:hover {
+            background-color: var(--tcm-purple-dark);
             color: #fff;
         }
 
         .btn-tcm-gold {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             border: none;
         }
 
         .btn-tcm-gold:hover {
             background-color: var(--tcm-gold-dark);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
     </style>
 </head>
@@ -234,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 <div class="mb-3">
                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                 </div>
-                <button type="submit" class="btn btn-tcm-green w-100">Import Students</button>
+                <button type="submit" class="btn btn-tcm-purple w-100">Import Students</button>
             </form>
         </div>
     </div>

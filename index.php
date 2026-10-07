@@ -12,20 +12,20 @@ include('db.php');
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -52,11 +52,11 @@ include('db.php');
         .navbar-tcm .logout-btn:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
@@ -67,33 +67,33 @@ include('db.php');
 
         .menu-tile {
             background-color: #fff;
-            border: 1px solid #e3e9e6;
+            border: 1px solid #e5dfee;
             border-radius: 14px;
             padding: 2rem 1.25rem;
             text-align: center;
             text-decoration: none;
             display: block;
             transition: all 0.18s ease;
-            box-shadow: 0 2px 8px rgba(27, 94, 69, 0.06);
+            box-shadow: 0 2px 8px rgba(75, 46, 131, 0.06);
         }
 
         .menu-tile:hover {
             transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(27, 94, 69, 0.15);
-            border-color: var(--tcm-green);
+            box-shadow: 0 12px 24px rgba(75, 46, 131, 0.15);
+            border-color: var(--tcm-purple);
         }
 
         .menu-tile .tile-icon {
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background-color: rgba(27, 94, 69, 0.1);
+            background-color: rgba(75, 46, 131, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 1rem;
             font-size: 1.5rem;
-            color: var(--tcm-green);
+            color: var(--tcm-purple);
         }
 
         .menu-tile .tile-label {

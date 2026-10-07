@@ -10,11 +10,14 @@ $message = '';
 if (isset($_POST['borrow'])) {
     $student_id = intval($_POST['student_id']);
     $book_ids = $_POST['book_ids'] ?? [];
+    $borrow_days = intval($_POST['borrow_days'] ?? 1);
 
-    // Remove duplicates
+    if ($borrow_days < 1 || $borrow_days > 3) {
+        $borrow_days = 1;
+    }
+
     $book_ids = array_unique($book_ids);
 
-    // Check current borrowed count
     $limit_check = mysqli_query($conn, "SELECT COUNT(*) as total FROM borrowing WHERE student_id = $student_id AND return_date IS NULL");
     $limit_row = mysqli_fetch_assoc($limit_check);
     $currently_borrowed = $limit_row['total'];
@@ -26,6 +29,7 @@ if (isset($_POST['borrow'])) {
         $message = '<div class="alert alert-danger">Too many books selected. This student can only borrow ' . $remaining_slots . ' more book(s).</div>';
     } else {
         $date = date('Y-m-d');
+        $due_date = date('Y-m-d', strtotime($date . ' + ' . $borrow_days . ' days'));
         $success_count = 0;
         $errors = [];
 
@@ -35,9 +39,13 @@ if (isset($_POST['borrow'])) {
             if (mysqli_num_rows($book_check) == 0) {
                 $errors[] = "Book ID $book_id is no longer available.";
             } else {
-                mysqli_query($conn, "INSERT INTO borrowing (student_id, book_id, borrow_date) VALUES ($student_id, $book_id, '$date')");
-                mysqli_query($conn, "UPDATE books SET is_available = 0 WHERE id = $book_id");
-                $success_count++;
+                $insert_ok = mysqli_query($conn, "INSERT INTO borrowing (student_id, book_id, borrow_date, borrow_days, due_date) VALUES ($student_id, $book_id, '$date', $borrow_days, '$due_date')");
+                if ($insert_ok && mysqli_affected_rows($conn) > 0) {
+                    mysqli_query($conn, "UPDATE books SET is_available = 0 WHERE id = $book_id");
+                    $success_count++;
+                } else {
+                    $errors[] = "Could not record borrowing for Book ID $book_id. Please try again.";
+                }
             }
         }
 
@@ -52,19 +60,22 @@ if (isset($_POST['borrow'])) {
 
 // Handle Return
 if (isset($_POST['return'])) {
-    $borrowing_id = $_POST['borrowing_id'];
-    $book_id = $_POST['book_id'];
+    $borrowing_id = intval($_POST['borrowing_id']);
+    $book_id = intval($_POST['book_id']);
 
     $date = date('Y-m-d');
-    mysqli_query($conn, "UPDATE borrowing SET return_date = '$date' WHERE id = $borrowing_id");
-    mysqli_query($conn, "UPDATE books SET is_available = 1 WHERE id = $book_id");
-    $message = '<div class="alert alert-success">Book returned successfully!</div>';
+    mysqli_query($conn, "UPDATE borrowing SET return_date = '$date' WHERE id = $borrowing_id AND return_date IS NULL");
+
+    if (mysqli_affected_rows($conn) > 0) {
+        mysqli_query($conn, "UPDATE books SET is_available = 1 WHERE id = $book_id");
+        $message = '<div class="alert alert-success">Book returned successfully!</div>';
+    } else {
+        $message = '<div class="alert alert-warning">This record was already returned or could not be found.</div>';
+    }
 }
 
-// Get all active students only — deactivated students shouldn't be borrowable
 $students = mysqli_query($conn, "SELECT * FROM students WHERE is_active = 1");
 
-// Get available books
 $books = mysqli_query($conn, "SELECT * FROM books WHERE is_available = 1");
 $books_array = [];
 while ($b = mysqli_fetch_assoc($books)) {
@@ -84,20 +95,20 @@ $books_json = json_encode($books_array);
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
     <style>
         :root {
-            --tcm-green: #1B5E45;
-            --tcm-green-dark: #144534;
+            --tcm-purple: #4B2E83;
+            --tcm-purple-dark: #35205E;
             --tcm-gold: #D4A72C;
             --tcm-gold-dark: #B88F22;
         }
 
         body {
-            background: linear-gradient(180deg, #f4f7f6 0%, #e8f0ec 100%);
+            background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .navbar-tcm {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             padding: 0.9rem 2rem;
         }
 
@@ -123,47 +134,47 @@ $books_json = json_encode($books_array);
         .navbar-tcm .btn-outline-light:hover {
             background-color: var(--tcm-gold);
             border-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .section-heading {
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
         .card-tcm {
             border: none;
             border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.1);
             overflow: hidden;
         }
 
         .card-header-borrow {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 700;
         }
 
         .card-header-return {
-            background-color: var(--tcm-green);
+            background-color: var(--tcm-purple);
             color: #fff;
             font-weight: 700;
         }
 
         #book-counter {
-            background-color: var(--tcm-green-dark) !important;
+            background-color: var(--tcm-purple-dark) !important;
         }
 
         .btn-tcm-gold {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
             font-weight: 600;
             border: none;
         }
 
         .btn-tcm-gold:hover {
             background-color: var(--tcm-gold-dark);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
         .btn-outline-tcm-gold {
@@ -174,18 +185,18 @@ $books_json = json_encode($books_array);
 
         .btn-outline-tcm-gold:hover {
             background-color: var(--tcm-gold);
-            color: var(--tcm-green-dark);
+            color: var(--tcm-purple-dark);
         }
 
-        .btn-tcm-green {
-            background-color: var(--tcm-green);
+        .btn-tcm-purple {
+            background-color: var(--tcm-purple);
             color: #fff;
             font-weight: 600;
             border: none;
         }
 
-        .btn-tcm-green:hover {
-            background-color: var(--tcm-green-dark);
+        .btn-tcm-purple:hover {
+            background-color: var(--tcm-purple-dark);
             color: #fff;
         }
 
@@ -193,11 +204,11 @@ $books_json = json_encode($books_array);
             border: none;
             border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(27, 94, 69, 0.08);
+            box-shadow: 0 4px 16px rgba(75, 46, 131, 0.1);
         }
 
         .table thead th {
-            background-color: var(--tcm-green) !important;
+            background-color: var(--tcm-purple) !important;
             color: #fff;
             font-weight: 600;
             font-size: 0.85rem;
@@ -213,7 +224,7 @@ $books_json = json_encode($books_array);
         }
 
         .table tbody tr:hover {
-            background-color: rgba(27, 94, 69, 0.05);
+            background-color: rgba(75, 46, 131, 0.05);
         }
     </style>
 </head>
@@ -236,7 +247,6 @@ $books_json = json_encode($books_array);
 
     <div class="row g-4">
 
-        <!-- Borrow Form -->
         <div class="col-md-6">
             <div class="card card-tcm h-100">
                 <div class="card-header card-header-borrow d-flex justify-content-between align-items-center">
@@ -246,7 +256,6 @@ $books_json = json_encode($books_array);
                 <div class="card-body">
                     <form method="POST" id="borrow-form">
 
-                        <!-- Student Selection -->
                         <div class="mb-3">
                             <label class="form-label">Select Student</label>
                             <select name="student_id" id="student-select" class="form-select" required>
@@ -261,15 +270,20 @@ $books_json = json_encode($books_array);
                             </select>
                         </div>
 
-                        <!-- Remaining slots info -->
                         <div id="slot-info" class="alert alert-info py-2 small mb-3" style="display:none;"></div>
 
-                        <!-- Book Rows Container -->
-                        <div id="book-rows">
-                            <!-- Book rows will appear here after student is selected -->
+                        <div class="mb-3">
+                             <label class="form-label">Number of Days to Borrow</label>
+                            <select name="borrow_days" class="form-select" required>
+                                <option value="1">1 Day</option>
+                                <option value="2">2 Days</option>
+                                <option value="3">3 Days</option>
+                            </select>
                         </div>
 
-                        <!-- Add Another Book Button -->
+                        <div id="book-rows">
+                        </div>
+
                         <div class="mb-3" id="add-btn-container" style="display:none;">
                             <button type="button" class="btn btn-outline-tcm-gold btn-sm w-100" id="add-book-btn">
                                 <i class="bi bi-plus-lg me-1"></i>Add Another Book
@@ -285,7 +299,6 @@ $books_json = json_encode($books_array);
             </div>
         </div>
 
-        <!-- Return Form -->
         <div class="col-md-6">
             <div class="card card-tcm h-100">
                 <div class="card-header card-header-return">
@@ -319,7 +332,7 @@ $books_json = json_encode($books_array);
                             </select>
                         </div>
                         <input type="hidden" name="book_id" value="">
-                        <button type="submit" name="return" class="btn btn-tcm-green w-100">
+                        <button type="submit" name="return" class="btn btn-tcm-purple w-100">
                             Return Book
                         </button>
                     </form>
@@ -332,7 +345,6 @@ $books_json = json_encode($books_array);
 
     </div>
 
-    <!-- Active Borrowing Records -->
     <h5 class="section-heading mt-5 mb-3">Currently Borrowed Books</h5>
     <div class="card card-table">
         <div class="card-body p-0">
@@ -343,6 +355,8 @@ $books_json = json_encode($books_array);
                         <th>Book</th>
                         <th>Serial No.</th>
                         <th>Date Borrowed</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -352,7 +366,8 @@ $books_json = json_encode($books_array);
                            students.student_no,
                            books.title as book_title,
                            books.serial_no,
-                           borrowing.borrow_date
+                           borrowing.borrow_date,
+                           borrowing.due_date
                     FROM borrowing
                     JOIN students ON borrowing.student_id = students.id
                     JOIN books ON borrowing.book_id = books.id
@@ -362,15 +377,24 @@ $books_json = json_encode($books_array);
 
                 if (mysqli_num_rows($active) > 0) {
                     while ($row = mysqli_fetch_assoc($active)) {
+                        $today = date('Y-m-d');
+                        if ($row['due_date'] && $today > $row['due_date']) {
+                            $status_badge = '<span class="badge bg-danger">Overdue</span>';
+                        } else {
+                            $status_badge = '<span class="badge bg-success">Active</span>';
+                        }
+
                         echo "<tr>
                             <td>{$row['student_name']} ({$row['student_no']})</td>
                             <td>{$row['book_title']}</td>
                             <td>{$row['serial_no']}</td>
                             <td>{$row['borrow_date']}</td>
+                            <td>{$row['due_date']}</td>
+                            <td>$status_badge</td>
                         </tr>";
                     }
                 } else {
-                    echo "<tr><td colspan='4' class='text-center text-muted py-3'>No active borrowing records.</td></tr>";
+                    echo "<tr><td colspan='6' class='text-center text-muted py-3'>No active borrowing records.</td></tr>";
                 }
                 ?>
                 </tbody>
@@ -404,7 +428,6 @@ $(document).ready(function() {
         var selected = $(this).find(':selected');
         $('input[name="book_id"]').val(selected.data('bookid'));
     });
-    // Student select change — check remaining slots
     $('#student-select').on('change', function() {
         var studentId = $(this).val();
         if (!studentId) {
@@ -416,7 +439,6 @@ $(document).ready(function() {
             return;
         }
 
-        // Ask server how many books this student already has
         $.ajax({
             url: 'get_student_slots.php',
             method: 'GET',
@@ -445,7 +467,6 @@ $(document).ready(function() {
                     .html('This student currently has <strong>' + borrowed + '</strong> book(s) borrowed. They can borrow <strong>' + remaining + '</strong> more.')
                     .show();
 
-                // Clear existing rows and add first row
                 $('#book-rows').html('');
                 updateCounter(0, remaining);
                 addBookRow(remaining);
@@ -454,7 +475,6 @@ $(document).ready(function() {
         });
     });
 
-    // Add Another Book button
     $('#add-book-btn').on('click', function() {
         var currentRows = $('#book-rows .book-row').length;
         var studentId = $('#student-select').val();
@@ -475,7 +495,6 @@ $(document).ready(function() {
         });
     });
 
-    // Remove book row
     $(document).on('click', '.remove-book-btn', function() {
         $(this).closest('.book-row').remove();
         var currentRows = $('#book-rows .book-row').length;
@@ -509,7 +528,6 @@ $(document).ready(function() {
             var select = $(this);
             var currentSelect2 = select.data('select2') !== undefined;
 
-            // Rebuild options
             var options = '<option value="">-- Choose Book --</option>';
             availableBooks.forEach(function(book) {
                 var isSelectedElsewhere = selected.includes(String(book.id)) && String(book.id) !== thisVal;
@@ -518,7 +536,6 @@ $(document).ready(function() {
                 }
             });
 
-            // Update without destroying Select2
             var tempVal = thisVal;
             select.html(options).val(tempVal).trigger('change.select2');
         });
@@ -542,7 +559,6 @@ $(document).ready(function() {
 
         $('#book-rows').append(row);
 
-        // Apply Select2 to the new dropdown
         var newSelect = $('#book-rows .book-row:last .book-select');
         newSelect.select2({
             theme: 'bootstrap-5',
@@ -551,7 +567,6 @@ $(document).ready(function() {
             width: '100%'
         });
 
-        // When a book is selected, refresh all other dropdowns
         newSelect.on('change', function() {
             refreshDropdowns();
         });
@@ -571,4 +586,5 @@ $(document).ready(function() {
         }
     }
 });
-</script>
+</script></body>
+</html>
