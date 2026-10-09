@@ -60,11 +60,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             text-align: center;
         }
 
+        .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
         .school-logo {
             width: 110px;
             height: 110px;
             object-fit: contain;
-            margin-bottom: 1rem;
+        }
+
+        /* the round seal has less visual mass than the shield, so it is drawn a little larger */
+        .school-logo.seal-logo {
+            width: 116px;
+            height: 116px;
+        }
+
+        @media (max-width: 400px) {
+            .logo-row {
+                gap: 0.4rem;
+            }
+
+            .school-logo {
+                width: 92px;
+                height: 92px;
+            }
+
+            .school-logo.seal-logo {
+                width: 97px;
+                height: 97px;
+            }
         }
 
         .login-title {
@@ -173,7 +202,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="login-wrapper">
 
-    <img src="assets/images/tcm_logo.png" alt="TCM Seal" class="school-logo">
+    <div class="logo-row">
+        <img src="assets/images/tcm_logo.png" alt="The College of Maasin Seal" class="school-logo seal-logo">
+        <img src="assets/images/col_logo.png" alt="College of Law Logo" class="school-logo">
+    </div>
     <h4 class="login-title">The College of Maasin</h4>
     <h5 class="login-department">College of Law Library</h5>
     <p class="login-subtitle">Sign in to your staff account</p>
@@ -207,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     </div>
 
-    <p class="login-footer">Law Department Library &middot; <?php echo date('Y'); ?></p>
+    <p class="login-footer">College of Law Library &middot; <?php echo date('Y'); ?></p>
 
 </div>
 

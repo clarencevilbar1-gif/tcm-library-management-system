@@ -1,0 +1,134 @@
+/* =====================================================================
+   Shared header (top bar) used by every page after login.
+   Edit here once and the header changes on all pages.
+   ===================================================================== */
+
+.navbar-tcm {
+    background-color: var(--tcm-purple, #4B2E83);
+    padding: 0.75rem 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.navbar-tcm .navbar-brand {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    white-space: normal;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+}
+
+.brand-logos {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.brand-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+/* the round seal is drawn slightly larger so it looks the same size as the shield */
+.brand-logo.brand-seal {
+    width: 76px;
+    height: 76px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.brand-school {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.01em;
+}
+
+.brand-system {
+    font-size: 0.98rem;
+    font-weight: 500;
+    color: var(--tcm-gold, #D4A72C);
+    margin-top: 2px;
+}
+
+.navbar-tcm .btn-outline-light {
+    border-color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+}
+
+.navbar-tcm .btn-outline-light:hover {
+    background-color: var(--tcm-gold, #D4A72C);
+    border-color: var(--tcm-gold, #D4A72C);
+    color: var(--tcm-purple-dark, #35205E);
+}
+
+@media (max-width: 992px) {
+    .navbar-tcm {
+        padding: 0.7rem 1.25rem;
+    }
+
+    .brand-logo {
+        width: 58px;
+        height: 58px;
+    }
+
+    .brand-logo.brand-seal {
+        width: 62px;
+        height: 62px;
+    }
+
+    .brand-school {
+        font-size: 1.2rem;
+    }
+
+    .brand-system {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar-tcm {
+        padding: 0.6rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .navbar-tcm .navbar-brand {
+        gap: 0.6rem;
+    }
+
+    .brand-logos {
+        gap: 0.3rem;
+    }
+
+    .brand-logo {
+        width: 44px;
+        height: 44px;
+    }
+
+    .brand-logo.brand-seal {
+        width: 47px;
+        height: 47px;
+    }
+
+    .brand-school {
+        font-size: 1rem;
+    }
+
+    .brand-system {
+        font-size: 0.72rem;
+    }
+}

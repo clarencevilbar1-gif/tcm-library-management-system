@@ -93,6 +93,7 @@ $loans = get_active_loans($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
             --tcm-purple: #4B2E83;
@@ -105,36 +106,6 @@ $loans = get_active_loans($conn);
             background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        }
-
-        .navbar-tcm {
-            background-color: var(--tcm-purple);
-            padding: 0.9rem 2rem;
-        }
-
-        .navbar-tcm .navbar-brand {
-            color: #fff;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .navbar-tcm .navbar-brand img {
-            width: 40px;
-            height: 40px;
-            object-fit: contain;
-        }
-
-        .navbar-tcm .btn-outline-light {
-            border-color: rgba(255,255,255,0.5);
-            font-size: 0.85rem;
-        }
-
-        .navbar-tcm .btn-outline-light:hover {
-            background-color: var(--tcm-gold);
-            border-color: var(--tcm-gold);
-            color: var(--tcm-purple-dark);
         }
 
         .section-heading {
@@ -338,16 +309,7 @@ $loans = get_active_loans($conn);
 </head>
 <body>
 
-<nav class="navbar navbar-tcm d-flex justify-content-between">
-    <span class="navbar-brand">
-        <img src="assets/images/tcm_logo.png" alt="TCM Seal">
-        Law Department Library
-    </span>
-    <div class="d-flex align-items-center gap-3">
-        <a href="index.php" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Menu</a>
-        <a href="logout.php" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
-    </div>
-</nav>
+<?php $nav_mode = 'page'; include('navbar.php'); ?>
 
 <div class="container mt-4 mb-5">
 

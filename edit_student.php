@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Edit Student</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
             --tcm-purple: #4B2E83;
@@ -43,36 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: linear-gradient(180deg, #f6f4f9 0%, #ece5f3 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        }
-
-        .navbar-tcm {
-            background-color: var(--tcm-purple);
-            padding: 0.9rem 2rem;
-        }
-
-        .navbar-tcm .navbar-brand {
-            color: #fff;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .navbar-tcm .navbar-brand img {
-            width: 40px;
-            height: 40px;
-            object-fit: contain;
-        }
-
-        .navbar-tcm .btn-outline-light {
-            border-color: rgba(255,255,255,0.5);
-            font-size: 0.85rem;
-        }
-
-        .navbar-tcm .btn-outline-light:hover {
-            background-color: var(--tcm-gold);
-            border-color: var(--tcm-gold);
-            color: var(--tcm-purple-dark);
         }
 
         .page-heading {
@@ -101,13 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
 
-<nav class="navbar navbar-tcm d-flex justify-content-between">
-    <span class="navbar-brand">
-        <img src="assets/images/tcm_logo.png" alt="TCM Seal">
-        Law Department Library
-    </span>
-    <a href="students.php" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Students</a>
-</nav>
+<?php $nav_mode = 'back'; $nav_back_url = 'students.php'; $nav_back_label = 'Back to Students'; include('navbar.php'); ?>
 
 <div class="container mt-4" style="max-width: 500px;">
     <h4 class="page-heading mb-4"><i class="bi bi-pencil-square me-2"></i>Edit Student</h4>
