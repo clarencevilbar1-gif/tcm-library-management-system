@@ -74,7 +74,7 @@ if (isset($_POST['borrow'])) {
 
 $students = mysqli_query($conn, "SELECT * FROM students WHERE is_active = 1");
 
-$books = mysqli_query($conn, "SELECT * FROM books WHERE available_copies > 0 ORDER BY serial_no ASC");
+$books = mysqli_query($conn, "SELECT * FROM books WHERE available_copies > 0 ORDER BY CAST(acc_nos AS UNSIGNED) ASC, acc_nos ASC");
 $books_array = [];
 while ($b = mysqli_fetch_assoc($books)) {
     $books_array[] = $b;
@@ -547,7 +547,7 @@ $(document).ready(function() {
             availableBooks.forEach(function(book) {
                 var isSelectedElsewhere = selected.includes(String(book.id)) && String(book.id) !== thisVal;
                 if (!isSelectedElsewhere) {
-                    options += '<option value="' + book.id + '"' + (String(book.id) === thisVal ? ' selected' : '') + '>' + book.serial_no + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
+                    options += '<option value="' + book.id + '"' + (String(book.id) === thisVal ? ' selected' : '') + '>' + book.acc_nos + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
                 }
             });
 
@@ -563,7 +563,7 @@ $(document).ready(function() {
         availableBooks.forEach(function(book) {
             var selected = getSelectedBookIds();
             if (!selected.includes(String(book.id))) {
-                options += '<option value="' + book.id + '">' + book.serial_no + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
+                options += '<option value="' + book.id + '">' + book.acc_nos + ' — ' + book.title + ' (' + book.available_copies + ' left)</option>';
             }
         });
 

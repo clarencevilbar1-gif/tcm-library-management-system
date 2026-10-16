@@ -70,7 +70,7 @@ foreach ($loans as $l) {
     $by_student[$sid]['loans'][] = [
         'id' => (int)$l['id'],
         'title' => $l['book_title'],
-        'serial' => $l['serial_no'],
+        'acc_nos' => $l['acc_nos'],
         'borrow_date' => $l['borrow_date'],
         'due_date' => $l['due_date'],
         'overdue' => (bool)$l['is_overdue']
@@ -458,7 +458,7 @@ $(document).ready(function() {
             var $body = $('<div class="flex-grow-1 return-item-body"></div>');
             $body.append($('<div class="fw-semibold"></div>').text(l.title));
             $body.append($('<div class="small text-muted"></div>').text(
-                l.serial + '  ·  Borrowed ' + l.borrow_date + '  ·  Due ' + (l.due_date ? l.due_date : '—')
+                l.acc_nos + '  ·  Borrowed ' + l.borrow_date + '  ·  Due ' + (l.due_date ? l.due_date : '—')
             ));
             $item.append($body);
 

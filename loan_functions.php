@@ -6,7 +6,7 @@ function get_active_loans($conn) {
     $sql = "SELECT borrowing.id, borrowing.student_id, borrowing.book_id,
                    borrowing.borrow_date, borrowing.due_date,
                    students.name AS student_name, students.student_no, students.is_active,
-                   books.title AS book_title, books.serial_no
+                   books.title AS book_title, books.acc_nos
             FROM borrowing
             JOIN students ON borrowing.student_id = students.id
             JOIN books ON borrowing.book_id = books.id
@@ -39,7 +39,7 @@ function render_loans_table($loans, $empty_text) {
             <tr>
                 <th>Student</th>
                 <th>Book</th>
-                <th>Serial No.</th>
+                <th>Acc. No(s).</th>
                 <th>Date Borrowed</th>
                 <th>Due Date</th>
                 <th class="col-center">Status</th>
@@ -53,7 +53,7 @@ function render_loans_table($loans, $empty_text) {
                     <div class="small text-muted student-no"><?php echo htmlspecialchars($l['student_no']); ?></div>
                 </td>
                 <td><?php echo htmlspecialchars($l['book_title']); ?></td>
-                <td><?php echo htmlspecialchars($l['serial_no']); ?></td>
+                <td><?php echo htmlspecialchars($l['acc_nos']); ?></td>
                 <td class="nowrap"><?php echo htmlspecialchars($l['borrow_date']); ?></td>
                 <td class="nowrap"><?php echo $l['due_date'] ? htmlspecialchars($l['due_date']) : '—'; ?></td>
                 <td class="col-center">
