@@ -270,7 +270,7 @@ if ($search !== '') {
                  OR author LIKE '%$s%' OR publication LIKE '%$s%'";
 }
 // Acc. No(s). are sorted as numbers (1000 comes after 999), then as text
-$result = mysqli_query($conn, "SELECT * FROM books $where ORDER BY CAST(acc_nos AS UNSIGNED) ASC, acc_nos ASC, id ASC");
+$result = mysqli_query($conn, "SELECT * FROM books $where ORDER BY (acc_nos NOT REGEXP '^[0-9]') ASC, CAST(acc_nos AS UNSIGNED) ASC, acc_nos ASC, id ASC");
 $shown = mysqli_num_rows($result);
 
 // A failed "Add Book" brings the form back with what was typed

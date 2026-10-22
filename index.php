@@ -253,8 +253,16 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
 
 <div class="container mt-4 mb-5">
 
-    <h4 class="page-heading mb-1">Library Overview</h4>
-    <p class="page-subheading mb-3">Current status of the library's books</p>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h4 class="page-heading mb-1">Library Overview</h4>
+            <p class="page-subheading mb-0">Current status of the library's books</p>
+        </div>
+        <!-- Backup status (filled in by assets/js/backup-prompt.js) -->
+        <div id="bk-tile">
+            <a href="backup.php" class="text-decoration-none fw-semibold"><i class="bi bi-shield-check me-1"></i>Backup &amp; Restore</a>
+        </div>
+    </div>
 
     <div class="row g-4 mb-4">
 

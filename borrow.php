@@ -74,7 +74,7 @@ if (isset($_POST['borrow'])) {
 
 $students = mysqli_query($conn, "SELECT * FROM students WHERE is_active = 1");
 
-$books = mysqli_query($conn, "SELECT * FROM books WHERE available_copies > 0 ORDER BY CAST(acc_nos AS UNSIGNED) ASC, acc_nos ASC");
+$books = mysqli_query($conn, "SELECT * FROM books WHERE available_copies > 0 ORDER BY (acc_nos NOT REGEXP '^[0-9]') ASC, CAST(acc_nos AS UNSIGNED) ASC, acc_nos ASC");
 $books_array = [];
 while ($b = mysqli_fetch_assoc($books)) {
     $books_array[] = $b;

@@ -1,0 +1,60 @@
+TCM COLLEGE OF LAW LIBRARY SYSTEM - RECOVERY GUIDE
+==================================================
+
+Keep this guide. A copy is also inside every backup .zip file.
+
+WHAT A BACKUP CONTAINS
+  database.sql    all the records (books, students, borrowing history, staff accounts)
+  system-files/   a copy of the website files (PHP, styles, images)
+  manifest.json   what is inside, with record counts and a checksum
+Backups are saved in:  C:\xampp\law-library-backups   (one .zip per backup, named with its date and time)
+and, if set up, also e-mailed to the department Gmail and/or copied to a second folder (USB / Google Drive).
+
+WHICH SITUATION ARE YOU IN?
+
+A. The system opens, but data is wrong or missing
+   1. Log in, then Main Menu > Backup (small tile, top right) > Manage.
+   2. Press "Restore" next to the last good backup, type RESTORE, confirm.
+   The system saves the current data first, so a restore can itself be undone.
+
+B. You cannot log in, or pages show database errors
+   1. On the computer that runs the system, open the browser and go to:
+        http://localhost/law-library/emergency_restore.php
+      (It works without logging in, but only on that computer.)
+   2. Pick a backup, type RESTORE, press "Restore now".
+   If MySQL is not running, open the XAMPP Control Panel and press Start next to MySQL first.
+
+C. The website does not open at all
+   1. XAMPP Control Panel: start MySQL (Apache is not needed for this step).
+   2. In the system folder (C:\xampp\htdocs\law-library) double-click  restore.bat
+   3. Press Enter to pick the newest backup. Answer "y" to restore the program files if pages are broken or missing.
+   4. Type RESTORE. When it says "Restore finished", start Apache and open the system again.
+   If restore.bat says the "ZipArchive" class is missing: open C:\xampp\php\php.ini in Notepad, make sure the line
+   "extension=zip" has no semicolon in front of it, save, and try again.
+
+D. The computer is lost, or XAMPP must be installed again
+   1. Install XAMPP. Start Apache and MySQL.
+   2. Download the project from GitHub into  C:\xampp\htdocs\law-library
+      (repository: clarencevilbar1-gif/tcm-library-management-system), then in that folder run:  composer install
+   3. Get the newest backup .zip:
+        - from the Gmail inbox (open the newest "TCM Law Library backup" e-mail and download the attachment), or
+        - from the USB drive / Google Drive folder, if a second copy folder was set.
+   4. Create the folder  C:\xampp\law-library-backups  and put the .zip in it.
+   5. Double-click  restore.bat  and follow the questions (it creates the database if it does not exist).
+
+E. LAST RESORT - by hand, with only phpMyAdmin
+   1. Open the backup .zip (it is a normal zip file) and take out  database.sql
+   2. Open  http://localhost/phpmyadmin , create a database called  law_library_db  if it does not exist.
+   3. Click that database > Import > choose database.sql > Go.
+   4. If program files are missing, copy the folder "system-files" from the .zip into C:\xampp\htdocs\law-library
+   (A password-protected backup needs a program such as 7-Zip to open. Without the password it cannot be opened by anyone.)
+
+DAILY AUTOMATIC BACKUP (optional)
+  Double-click  schedule_backup.bat  and type a time (for example 17:00).
+  To make a backup at any moment without opening the system:  double-click  backup.bat
+
+REMEMBER
+  - The backups contain student and borrowing records. Keep them private.
+  - A backup that only exists on the same computer is lost if that computer is lost: use the e-mail copy
+    or a second copy folder (USB / Google Drive) as well.
+  - Check now and then that the newest backup file is recent and that the Gmail copy arrives.

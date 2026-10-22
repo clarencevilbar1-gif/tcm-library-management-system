@@ -39,3 +39,4 @@ $nav_back_label = isset($nav_back_label) ? $nav_back_label : 'Back to Menu';
     </div>
     <?php endif; ?>
 </nav>
+<script src="assets/js/backup-prompt.js" defer></script>
