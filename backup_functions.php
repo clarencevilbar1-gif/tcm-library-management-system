@@ -383,6 +383,31 @@ function bk_collect_files() {
     return $files;
 }
 
+// Gmail refuses an attachment when a .zip contains certain file types (scripts and programs),
+// even though they are harmless here. In the copy that is e-mailed, such files get ".txt" added to
+// their name; a restore takes the ".txt" off again.
+define('BK_MAIL_BLOCKED_EXT', '/\.(ade|adp|apk|appx|bat|cab|chm|cmd|com|cpl|dll|dmg|ex|ex_|exe|hta|ins|isp|iso|jar|js|jse|lib|lnk|mde|msc|msi|msp|mst|nsh|pif|scr|sct|shb|sys|vb|vbe|vbs|vxd|wsc|wsf|wsh)$/i');
+
+// Writes the backup .zip. $mailSafe = true makes the Gmail-friendly variant. Returns bool.
+function bk_write_zip($part, $dbFiles, $dbDir, $files, $manifest, $password, $mailSafe) {
+    $zip = new ZipArchive();
+    if ($zip->open($part, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
+    if ($password !== '') $zip->setPassword($password);
+    $encNames = [];
+    foreach ($dbFiles as $name => $_) { $zip->addFile($dbDir . DIRECTORY_SEPARATOR . $name, $name); $encNames[] = $name; }
+    foreach ($files as $rel => $path) {
+        $inside = 'system-files/' . $rel . (($mailSafe && preg_match(BK_MAIL_BLOCKED_EXT, $rel)) ? '.txt' : '');
+        $zip->addFile($path, $inside);
+        $encNames[] = $inside;
+    }
+    $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    $zip->addFromString('RECOVERY-GUIDE.txt', bk_recovery_text());
+    if ($password !== '') {
+        foreach ($encNames as $n) $zip->setEncryptionName($n, ZipArchive::EM_AES_256);
+    }
+    return $zip->close();
+}
+
 function bk_recovery_text() {
     $f = BK_APP_DIR . '/RECOVERY-GUIDE.txt';
     if (is_file($f)) return (string)file_get_contents($f);
@@ -487,21 +512,8 @@ function bk_create_backup($type = 'manual', $opts = []) {
         'fingerprint' => $fp,
     ];
 
-    $zip = new ZipArchive();
-    if ($zip->open($part, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        $res['error'] = 'The backup file could not be created in ' . $targetDir;
-        $cleanup(); bk_log_append(bk_log_entry($res)); return $res;
-    }
-    if ($password !== '') $zip->setPassword($password);
-    $encNames = [];
-    foreach ($dbFiles as $name => $_) { $zip->addFile($tmpDir . DIRECTORY_SEPARATOR . $name, $name); $encNames[] = $name; }
-    foreach ($files as $rel => $path) { $zip->addFile($path, 'system-files/' . $rel); $encNames[] = 'system-files/' . $rel; }
-    $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    $zip->addFromString('RECOVERY-GUIDE.txt', bk_recovery_text());
-    if ($password !== '') {
-        foreach ($encNames as $n) $zip->setEncryptionName($n, ZipArchive::EM_AES_256);
-    }
-    $okz = $zip->close();
+    if (@!is_dir(dirname($part))) { $res['error'] = 'The backup file could not be created in ' . $targetDir; $cleanup(); bk_log_append(bk_log_entry($res)); return $res; }
+    $okz = bk_write_zip($part, $dbFiles, $tmpDir, $files, $manifest, $password, false);
     if (!$okz || !is_file($part)) {
         @unlink($part);
         $res['error'] = 'The backup file could not be written (is the disk full?).';
@@ -527,7 +539,16 @@ function bk_create_backup($type = 'manual', $opts = []) {
     // 4) e-mail
     if ($wantMail) {
         $to = isset($opts['email_to']) && trim($opts['email_to']) !== '' ? $opts['email_to'] : $s['mail_to'];
-        list($okm, $msg) = bk_send_backup_email($final, $to, $res, $manifest);
+        // the e-mailed copy is the Gmail-friendly variant (same contents, scripts renamed *.txt)
+        $mailDir = $tmpDir . DIRECTORY_SEPARATOR . 'mail';
+        @mkdir($mailDir, 0775, true);
+        $mailZip = $mailDir . DIRECTORY_SEPARATOR . $fileName;
+        if (bk_write_zip($mailZip, $dbFiles, $tmpDir, $files, $manifest, $password, true)) {
+            list($okm, $msg) = bk_send_backup_email($mailZip, $to, $res, $manifest);
+        } else {
+            list($okm, $msg) = [false, 'The e-mail copy of the backup could not be prepared.'];
+        }
+        @unlink($mailZip); @rmdir($mailDir);
         $res['mail'] = ['ok' => $okm, 'to' => $to, 'error' => $okm ? '' : $msg];
     }
 
@@ -581,8 +602,13 @@ function bk_status($m = null) {
     $lastOk = null; $lastLocal = null; $lastMail = null;
     foreach (array_reverse($log) as $e) {
         if (empty($e['ok'])) continue;
+        // a backup whose file has since been deleted from the folder no longer counts (unless it was e-mailed)
+        $fileThere = !empty($e['file']) && (is_file(rtrim($s['local_dir'], '/\\') . DIRECTORY_SEPARATOR . $e['file'])
+                     || (trim($s['mirror_dir']) !== '' && is_file(rtrim($s['mirror_dir'], '/\\') . DIRECTORY_SEPARATOR . $e['file'])));
+        $mailed = !empty($e['mail']['ok']);
+        if (!$fileThere && !$mailed) continue;
         if (!$lastOk) $lastOk = $e;
-        if (!$lastLocal && !empty($e['local']['ok'])) $lastLocal = $e;
+        if (!$lastLocal && $fileThere && !empty($e['local']['ok'])) $lastLocal = $e;
         if (!$lastMail && !empty($e['mail']['ok'])) $lastMail = $e;
     }
     $own = false;
@@ -635,6 +661,8 @@ function bk_friendly_mail_error($msg) {
         return 'Gmail did not accept the sign-in. Use an App Password (not the normal Gmail password) — the steps are on the Backup page.';
     if (strpos($m, 'smtp connect() failed') !== false || strpos($m, 'connection') !== false || strpos($m, 'could not connect') !== false)
         return 'Could not reach the mail server. Check that this computer is connected to the internet.';
+    if (strpos($m, 'data not accepted') !== false)
+        return 'Gmail refused the message (' . $msg . '). Sign-in was fine, so the problem is the message itself: Gmail may be blocking the attachment, or the account is limited. Press "Save & send test e-mail" to check the account separately.';
     return 'The e-mail could not be sent: ' . $msg;
 }
 
@@ -650,6 +678,7 @@ function bk_send_mail($to, $subject, $body, $attachment = null) {
         return [false, 'The backup (' . bk_human_size(filesize($attachment)) . ') is too big to e-mail (limit ' . bk_human_size(BK_MAX_EMAIL_BYTES) . '). It was saved on this computer instead.'];
     }
     try {
+        $mail = null;
         $mail = new PHPMailer(true);
         $mail->isSMTP();
         $mail->Host = $s['smtp_host'];
@@ -670,7 +699,10 @@ function bk_send_mail($to, $subject, $body, $attachment = null) {
         $mail->send();
         return [true, 'Sent to ' . implode(', ', $rcpt)];
     } catch (\Throwable $e) {
-        return [false, bk_friendly_mail_error($e->getMessage())];
+        $detail = '';
+        if (isset($mail) && $mail instanceof PHPMailer) { $er = $mail->getSMTPInstance()->getError(); if (!empty($er['detail'])) $detail = trim($er['detail']); if (!empty($er['smtp_code'])) $detail = trim($er['smtp_code'] . ' ' . $detail); }
+        $friendly = bk_friendly_mail_error($e->getMessage());
+        return [false, $detail !== '' && strpos($friendly, $detail) === false ? $friendly . ' [Server said: ' . $detail . ']' : $friendly];
     }
 }
 
@@ -827,6 +859,7 @@ function bk_restore_files($zipPath, $password, $targetDir) {
         $name = $zip->getNameIndex($i);
         if (strpos($name, 'system-files/') !== 0 || substr($name, -1) === '/') continue;
         $rel = substr($name, strlen('system-files/'));
+        if (substr($rel, -4) === '.txt' && preg_match(BK_MAIL_BLOCKED_EXT, substr($rel, 0, -4))) $rel = substr($rel, 0, -4);   // e-mail copy: scripts were renamed *.txt
         if ($rel === '' || strpos($rel, '..') !== false || $rel[0] === '/' || preg_match('/^[A-Za-z]:/', $rel)) { $skipped[] = $rel; continue; }
         if ($rel === 'db.php' && is_file($root . '/db.php')) { $skipped[] = 'db.php (kept: this computer\'s database login)'; continue; }
         $dest = $root . '/' . $rel;

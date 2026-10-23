@@ -1,6 +1,8 @@
 <?php 
 include('auth.php');
 include('db.php'); 
+include('student_functions.php');
+$cols_ready = st_columns_ready($conn);
 
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $view = isset($_GET['view']) ? $_GET['view'] : 'active';
@@ -130,6 +132,13 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
             100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
         }
 
+        .badge-male   { background-color: rgba(13, 110, 253, 0.12); color: #0a58ca; font-weight: 600; padding: 0.4em 0.7em; }
+        .badge-female { background-color: rgba(214, 51, 132, 0.12); color: #ab296a; font-weight: 600; padding: 0.4em 0.7em; }
+        .students-wrap { max-width: 1320px; }
+        .students-wrap .table tbody td, .students-wrap .table thead th { padding-left: 0.6rem; padding-right: 0.6rem; }
+        .students-wrap .table td.name-cell { text-align: left; }
+        .students-wrap .table th.name-head { text-align: left; }
+
         .badge-can-borrow {
             background-color: rgba(75, 46, 131, 0.12);
             color: var(--tcm-purple-dark);
@@ -239,8 +248,9 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 
 <?php $nav_mode = 'page'; include('navbar.php'); ?>
 
-<div class="container mt-4">
+<div class="container students-wrap mt-4">
     <h4 class="page-heading mb-3">Student Records</h4>
+    <?php if (!$cols_ready) echo st_migration_notice(); ?>
 
     <!-- Search Form -->
     <form method="GET" class="d-flex gap-2 mb-3 search-bar">
@@ -282,8 +292,10 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                 <thead>
                     <tr>
                         <th>Student No.</th>
-                        <th>Name</th>
+                        <th class="name-head">Name</th>
+                        <th>Gender</th>
                         <th>Course</th>
+                        <th>Year Level</th>
                         <th>Books Borrowed</th> 
                         <th>Borrow Status</th>
                         <th>Record Status</th>
@@ -296,7 +308,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 
                 if ($search) {
                     $search_safe = mysqli_real_escape_string($conn, $search);
-                    $conditions[] = "(name LIKE '%$search_safe%' OR student_no LIKE '%$search_safe%')";
+                    $conditions[] = "(name LIKE '%$search_safe%' OR student_no LIKE '%$search_safe%' OR course LIKE '%$search_safe%'" . ($cols_ready ? " OR year_level LIKE '%$search_safe%' OR gender LIKE '$search_safe%'" : "") . ")";
                 }
 
                 if ($view == 'active') {
@@ -342,10 +354,19 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                                     Reactivate
                                 </a>";
 
+                        $g = isset($row['gender']) ? $row['gender'] : '';
+                        $gender_cell = $g === 'Male' ? '<span class="badge badge-male">Male</span>'
+                                     : ($g === 'Female' ? '<span class="badge badge-female">Female</span>'
+                                     : ($g !== '' && $g !== null ? st_h($g) : '<span class="text-muted">—</span>'));
+                        $lvl = isset($row['year_level']) && $row['year_level'] !== '' && $row['year_level'] !== null ? st_h($row['year_level']) : '<span class="text-muted">—</span>';
+                        $course_cell = $row['course'] !== '' ? st_h($row['course']) : '<span class="text-muted">—</span>';
+
                         echo "<tr>
-                            <td>{$row['student_no']}</td>
-                            <td>{$row['name']}</td>
-                            <td>{$row['course']}</td>
+                            <td>" . st_h($row['student_no']) . "</td>
+                            <td class='name-cell'>" . st_h($row['name']) . "</td>
+                            <td>{$gender_cell}</td>
+                            <td>{$course_cell}</td>
+                            <td>{$lvl}</td>
                             <td>{$borrowed} / 3</td>
                             <td>{$status}</td>
                             <td>{$record_status}</td>
@@ -360,7 +381,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                         
                     }
                 } else {
-                    echo "<tr><td colspan='7' class='text-center text-muted py-3'>No students found.</td></tr>";
+                    echo "<tr><td colspan='9' class='text-center text-muted py-3'>No students found.</td></tr>";
                 }
                 ?>
                 </tbody>
@@ -383,18 +404,57 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                     <label class="form-label">Student Number</label>
                     <input type="text" name="student_no" class="form-control" required>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" name="name" class="form-control" required>
+                <div class="row g-2 mb-2">
+                    <div class="col-sm-6">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" name="last_name" id="f-last" class="form-control" required>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">First Name</label>
+                        <input type="text" name="first_name" id="f-first" class="form-control" required>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label">Middle Initial <span class="text-muted small">(optional)</span></label>
+                        <input type="text" name="mi" id="f-mi" class="form-control" maxlength="3">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Suffix <span class="text-muted small">(optional)</span></label>
+                        <input type="text" name="suffix" id="f-sfx" class="form-control" maxlength="10" placeholder="Jr., III ...">
+                    </div>
+                </div>
+                <div class="small text-muted mb-3">Saved as: <strong id="name-preview">—</strong></div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-select">
+                            <option value="">— not set —</option>
+                            <?php foreach (ST_GENDERS as $o) echo '<option>' . st_h($o) . '</option>'; ?>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Year Level</label>
+                        <select name="year_level" class="form-select">
+                            <option value="">— not set —</option>
+                            <?php foreach (ST_LEVELS as $o) echo '<option>' . st_h($o) . '</option>'; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Course</label>
-                    <input type="text" name="course" class="form-control" value="Juris Doctor" required>
+                    <select name="course" class="form-select" required>
+                        <?php foreach (ST_COURSES as $o) echo '<option>' . st_h($o) . '</option>'; ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contact Number <span class="text-muted small">(optional)</span></label>
+                    <input type="text" name="contact" class="form-control" maxlength="20">
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-success">Add Student</button>
+                <button type="submit" class="btn btn-success"<?php echo $cols_ready ? '' : ' disabled'; ?>>Add Student</button>
             </div>
             </form>
         </div>
@@ -402,6 +462,25 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// shows how the typed name will be saved: Last, First M. Suffix
+(function () {
+    var ids = ['f-last', 'f-first', 'f-mi', 'f-sfx'], el = {};
+    ids.forEach(function (i) { el[i] = document.getElementById(i); });
+    if (!el['f-last']) return;
+    function clean(v) { return (v || '').replace(/\s+/g, ' ').trim(); }
+    function render() {
+        var last = clean(el['f-last'].value), first = clean(el['f-first'].value), mi = clean(el['f-mi'].value).replace(/[\s.]+/g, ''), sfx = clean(el['f-sfx'].value);
+        if (mi.length === 1) mi = mi.toUpperCase() + '.';
+        else if (mi.length > 1) mi = clean(el['f-mi'].value);
+        if (/^(jr|sr)\.?$/i.test(sfx)) sfx = sfx.charAt(0).toUpperCase() + sfx.slice(1, 2).toLowerCase() + '.';
+        var given = [first, mi, sfx].filter(Boolean).join(' ');
+        var out = last && given ? last + ', ' + given : (last || given);
+        document.getElementById('name-preview').textContent = out || '—';
+    }
+    ids.forEach(function (i) { el[i].addEventListener('input', render); });
+})();
+</script>
 
 </body>
 </html>

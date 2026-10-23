@@ -1,4 +1,6 @@
 <?php
+$auth_json = true;
+include('auth_quiet.php');
 include('db.php');
 
 $student_id = intval($_GET['student_id']);

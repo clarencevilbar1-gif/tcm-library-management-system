@@ -1,4 +1,5 @@
 <?php
+include('auth_quiet.php');
 include('db.php');
 
 $id = intval($_GET['id']);
