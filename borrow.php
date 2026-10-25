@@ -4,9 +4,12 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 include('db.php');
 include('loan_functions.php');
+include('student_functions.php');
 
 $message = '';
 $selected_student = 0;
+$has_email = st_email_ready($conn);
+$old_contact = null;       // what was typed, put back in the boxes when the page has to be shown again
 
 // Handle Borrow
 if (isset($_POST['borrow'])) {
@@ -14,6 +17,12 @@ if (isset($_POST['borrow'])) {
     $selected_student = $student_id;
     $book_ids = $_POST['book_ids'] ?? [];
     $borrow_days = intval($_POST['borrow_days'] ?? 1);
+
+    // contact details given for this borrowing
+    $ph_in   = isset($_POST['contact_phone']) ? (string)$_POST['contact_phone'] : '';
+    $em_in   = $has_email && isset($_POST['contact_email']) ? (string)$_POST['contact_email'] : '';
+    $no_contact = !empty($_POST['no_contact']);
+    $old_contact = ['phone' => $ph_in, 'email' => $em_in, 'none' => $no_contact];
 
     if ($borrow_days < 1 || $borrow_days > 3) {
         $borrow_days = 1;
@@ -26,11 +35,45 @@ if (isset($_POST['borrow'])) {
     $currently_borrowed = $limit_row['total'];
     $remaining_slots = 3 - $currently_borrowed;
 
-    if (count($book_ids) == 0) {
+    // the student, with the contact already on file
+    $stu = null;
+    $sq = mysqli_query($conn, "SELECT id, contact_number" . ($has_email ? ", email" : "") . " FROM students WHERE id = $student_id AND is_active = 1");
+    if ($sq) $stu = mysqli_fetch_assoc($sq);
+    $saved_phone = $stu && $stu['contact_number'] !== null ? trim($stu['contact_number']) : '';
+    $saved_email = $stu && $has_email && $stu['email'] !== null ? trim($stu['email']) : '';
+
+    list($new_phone, $ph_status) = st_mobile($ph_in);
+    list($new_email, $em_status) = st_email($em_in);
+
+    if (!$stu) {
+        $message = '<div class="alert alert-danger">Please choose a student.</div>';
+    } elseif (count($book_ids) == 0) {
         $message = '<div class="alert alert-danger">Please select at least one book.</div>';
     } elseif (count($book_ids) > $remaining_slots) {
         $message = '<div class="alert alert-danger">Too many books selected. This student can only borrow ' . $remaining_slots . ' more book(s).</div>';
+    } elseif ($ph_status === 'bad') {
+        $message = '<div class="alert alert-danger">The mobile number does not look right. Please type it like <strong>09171234567</strong> (11 digits). Nothing was borrowed.</div>';
+    } elseif ($em_status === 'bad') {
+        $message = '<div class="alert alert-danger">The e-mail address does not look right. Please type it like <strong>name@gmail.com</strong>. Nothing was borrowed.</div>';
+    } elseif ($ph_status === 'blank' && $em_status === 'blank' && !$no_contact && $saved_phone === '' && $saved_email === '') {
+        $message = '<div class="alert alert-danger">Please enter the student\'s mobile number or e-mail, or tick <strong>this student has no mobile number or e-mail</strong>. Nothing was borrowed.</div>';
     } else {
+        // save what was given to the student's record (a blank box never erases what is already saved)
+        $contact_note = '';
+        $sets = []; $types = ''; $vals = [];
+        if ($new_phone !== null && $new_phone !== $saved_phone) { $sets[] = 'contact_number = ?'; $types .= 's'; $vals[] = $new_phone; }
+        if ($new_email !== null && $new_email !== $saved_email) { $sets[] = 'email = ?'; $types .= 's'; $vals[] = $new_email; }
+        if ($sets) {
+            $types .= 'i'; $vals[] = $student_id;
+            $cu = mysqli_prepare($conn, 'UPDATE students SET ' . implode(', ', $sets) . ' WHERE id = ?');
+            mysqli_stmt_bind_param($cu, $types, ...$vals);
+            if (mysqli_stmt_execute($cu)) $contact_note = '<div class="alert alert-info py-2">Contact details saved to the student\'s record.</div>';
+        }
+        $final_phone = $new_phone !== null ? $new_phone : $saved_phone;
+        $final_email = $new_email !== null ? $new_email : $saved_email;
+        if ($final_phone === '' && $final_email === '') {
+            $contact_note = '<div class="alert alert-warning py-2">This student has <strong>no contact on file</strong>. They will be asked again the next time they borrow.</div>';
+        }
         $date = date('Y-m-d');
         $due_date = date('Y-m-d', strtotime($date . ' + ' . $borrow_days . ' days'));
         $success_count = 0;
@@ -64,7 +107,8 @@ if (isset($_POST['borrow'])) {
         }
 
         if ($success_count > 0) {
-            $message = '<div class="alert alert-success">' . $success_count . ' book(s) borrowed successfully!</div>';
+            $message = '<div class="alert alert-success">' . $success_count . ' book(s) borrowed successfully!</div>' . $contact_note;
+            $old_contact = null;
         }
         if (!empty($errors)) {
             $message .= '<div class="alert alert-warning">' . implode('<br>', $errors) . '</div>';
@@ -89,10 +133,11 @@ $loans = get_active_loans($conn);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Borrow Book</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/select2/css/select2.min.css" rel="stylesheet">
+    <link href="assets/vendor/select2-bootstrap-5-theme/select2-bootstrap-5-theme.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
@@ -301,6 +346,55 @@ $loans = get_active_loans($conn);
             white-space: nowrap;
         }
 
+        /* the book box shrinks so the red remove button always stays inside the card */
+        .book-row .select2-container {
+            flex: 1 1 0;
+            min-width: 0;
+            width: 1px !important;
+        }
+
+        /* ---- Contact step ---- */
+        .contact-box {
+            background: #faf8fd;
+            border: 1px solid #e2d9ee;
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .contact-box .contact-title {
+            color: var(--tcm-purple-dark);
+            font-weight: 700;
+        }
+
+        .contact-box .badge-saved {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #1e8449;
+            font-weight: 600;
+        }
+
+        .contact-box .badge-empty {
+            background-color: #fff3d1;
+            color: #8a6100;
+            font-weight: 600;
+        }
+
+        /* a hint must never look like something that was already typed */
+        .contact-box input::placeholder {
+            color: #b9b2c7;
+            font-style: italic;
+            opacity: 1;
+        }
+
+        .contact-box input {
+            color: #1f1a2e;
+            font-weight: 500;
+        }
+
+        .contact-box input.is-bad {
+            border-color: #dc3545;
+        }
+
         .table-loans th.col-center,
         .table-loans td.col-center {
             text-align: center;
@@ -370,6 +464,29 @@ $loans = get_active_loans($conn);
                             </button>
                         </div>
 
+                        <div id="contact-box" class="contact-box" style="display:none;">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <span class="contact-title"><i class="bi bi-person-lines-fill me-1"></i>Student's Contact</span>
+                                <span id="contact-badge" class="badge"></span>
+                            </div>
+                            <div class="small text-muted mb-2">Used only to follow up on overdue books. Staff can type it, or the student can type it here. Type at least one.</div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1" for="contact-phone"><i class="bi bi-telephone me-1"></i>Mobile number</label>
+                                <input type="text" name="contact_phone" id="contact-phone" class="form-control" maxlength="20" placeholder="e.g. 09171234567" inputmode="tel" autocomplete="off">
+                            </div>
+                            <?php if ($has_email): ?>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1" for="contact-email"><i class="bi bi-envelope me-1"></i>E-mail</label>
+                                <input type="text" name="contact_email" id="contact-email" class="form-control" maxlength="150" placeholder="e.g. name@gmail.com" inputmode="email" autocomplete="off">
+                            </div>
+                            <?php endif; ?>
+                            <div id="contact-error" class="text-danger small mb-1" style="display:none;"></div>
+                            <div class="form-check mt-2" id="nocontact-wrap">
+                                <input class="form-check-input" type="checkbox" name="no_contact" value="1" id="no-contact">
+                                <label class="form-check-label small" for="no-contact">This student has no mobile number or e-mail</label>
+                            </div>
+                        </div>
+
                         <button type="submit" name="borrow" class="btn btn-tcm-gold w-100" id="borrow-btn" style="display:none;">
                             Borrow Book
                         </button>
@@ -398,9 +515,9 @@ $loans = get_active_loans($conn);
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="assets/vendor/jquery/jquery.min.js"></script>
+<script src="assets/vendor/select2/js/select2.min.js"></script>
 <script>
     const availableBooks = <?php echo $books_json; ?>;
 $(document).ready(function() {
@@ -449,6 +566,7 @@ $(document).ready(function() {
             $('#book-rows').html('');
             $('#add-btn-container').hide();
             $('#borrow-btn').hide();
+            $('#contact-box').hide();
             $('#slot-info').hide();
             updateCounter(0);
             return;
@@ -467,6 +585,7 @@ $(document).ready(function() {
                     $('#book-rows').html('');
                     $('#add-btn-container').hide();
                     $('#borrow-btn').hide();
+                    $('#contact-box').hide();
                     $('#slot-info')
                         .removeClass('alert-info alert-warning')
                         .addClass('alert-danger')
@@ -485,9 +604,80 @@ $(document).ready(function() {
                 $('#book-rows').html('');
                 updateCounter(0, remaining);
                 addBookRow(remaining);
+                showContact(data);
                 $('#borrow-btn').show();
             }
         });
+    });
+
+    // ---------- Contact step ----------
+    var savedContact = { phone: '', email: '' };
+    var oldContact = <?php echo $old_contact ? json_encode($old_contact) : 'null'; ?>;   // typed values, put back after an error
+
+    function cleanPhone(v) { return (v || '').replace(/[\s\-.()]/g, ''); }
+    function phoneStatus(v) {
+        if (!$.trim(v)) return 'blank';
+        return /^(\+?63|0)?9\d{9}$/.test(cleanPhone(v)) ? 'ok' : 'bad';
+    }
+    function emailStatus(v) {
+        v = $.trim(v);
+        if (!v) return 'blank';
+        return /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(v) ? 'ok' : 'bad';
+    }
+
+    function contactError(msg, focusEl) {
+        $('#contact-error').text(msg).show();
+        if (focusEl) focusEl.addClass('is-bad').trigger('focus');
+    }
+
+    function updateContactUi() {
+        var ph = $.trim($('#contact-phone').val()), em = $.trim($('#contact-email').val());
+        var has = ph !== '' || em !== '';
+        $('#contact-error').hide();
+        $('#contact-phone, #contact-email').removeClass('is-bad');
+        // the "no contact" box only matters while both boxes are empty
+        if (has) { $('#no-contact').prop('checked', false); $('#nocontact-wrap').hide(); }
+        else { $('#nocontact-wrap').show(); }
+        var none = $('#no-contact').prop('checked');
+        $('#contact-phone, #contact-email').prop('disabled', none);
+        var badge = $('#contact-badge');
+        if (none) badge.attr('class', 'badge badge-empty').text('No contact available');
+        else if (savedContact.phone || savedContact.email) {
+            var changed = (ph !== '' && ph !== savedContact.phone) || (em !== '' && em.toLowerCase() !== savedContact.email.toLowerCase());
+            badge.attr('class', 'badge badge-saved').text(changed ? 'Will be updated' : 'On file');
+        } else if (has) badge.attr('class', 'badge badge-saved').text('Will be saved');
+        else badge.attr('class', 'badge badge-empty').text('Not on file yet');
+    }
+
+    function showContact(data) {
+        savedContact = { phone: data.phone || '', email: data.email || '' };
+        var ph = savedContact.phone, em = savedContact.email, none = false;
+        if (oldContact) { ph = oldContact.phone; em = oldContact.email; none = !!oldContact.none; oldContact = null; }
+        $('#contact-phone').val(ph);
+        $('#contact-email').val(em);
+        $('#no-contact').prop('checked', none);
+        $('#contact-box').show();
+        updateContactUi();
+    }
+
+    $('#contact-phone, #contact-email').on('input', updateContactUi);
+    $('#no-contact').on('change', updateContactUi);
+
+    $('#borrow-form').on('submit', function(e) {
+        if (!$('#contact-box').is(':visible')) return;
+        var none = $('#no-contact').prop('checked');
+        var phEl = $('#contact-phone'), emEl = $('#contact-email');
+        if (!none) {
+            var ps = phoneStatus(phEl.val()), es = emEl.length ? emailStatus(emEl.val()) : 'blank';
+            if (ps === 'bad') { e.preventDefault(); contactError('The mobile number does not look right. Type it like 09171234567.', phEl); return; }
+            if (es === 'bad') { e.preventDefault(); contactError('The e-mail does not look right. Type it like name@gmail.com.', emEl); return; }
+            if (ps === 'blank' && es === 'blank') {
+                e.preventDefault();
+                $('#nocontact-wrap').show();
+                contactError('Please type a mobile number or an e-mail, or tick the box below if the student has neither.', phEl);
+                return;
+            }
+        }
     });
 
     $('#add-book-btn').on('click', function() {

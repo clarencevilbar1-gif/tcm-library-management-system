@@ -31,9 +31,10 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Law Library System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <title>College of Law Library Management System</title>
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
@@ -239,6 +240,42 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
             font-weight: 600;
         }
 
+        /* caption on the left, "Check now" shortcut on the right (only shown when a book is overdue) */
+        .stat-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.75rem;
+            margin-top: 0.6rem;
+        }
+
+        .stat-foot .stat-caption {
+            margin-top: 0;
+        }
+
+        .stat-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.85rem;
+            border: 1px solid #c0392b;
+            border-radius: 999px;
+            background: #fff;
+            color: #c0392b;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .stat-check:hover,
+        .stat-check:focus-visible {
+            background: #c0392b;
+            color: #fff;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .stat-fill {
                 transition: none;
@@ -306,6 +343,7 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
                     </div>
                     <div class="stat-pct"><span class="count-up" data-target="<?php echo $overdue_pct; ?>"><?php echo $overdue_pct; ?></span>%</div>
                 </div>
+                <div class="stat-foot">
                 <div class="stat-caption">
                     <?php
                     if ($borrowed_books == 0) {
@@ -318,6 +356,12 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
                         echo $overdue_books . ' of ' . $borrowed_books . ' borrowed ' . ($borrowed_books == 1 ? 'book is' : 'books are') . ' past the due date';
                     }
                     ?>
+                </div>
+                <?php if ($overdue_books > 0): ?>
+                    <a href="history.php?filter=overdue" class="stat-check" title="Show the overdue books, the most overdue first">
+                        <i class="bi bi-search"></i>Check now<i class="bi bi-arrow-right"></i>
+                    </a>
+                <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -337,23 +381,9 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
         </div>
 
         <div class="col-md-4">
-            <a href="books.php" class="menu-tile">
-                <div class="tile-icon"><i class="bi bi-book"></i></div>
-                <div class="tile-label">Book Inventory</div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
             <a href="borrow.php" class="menu-tile">
                 <div class="tile-icon"><i class="bi bi-journal-arrow-up"></i></div>
                 <div class="tile-label">Borrow Book</div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
-            <a href="import.php" class="menu-tile">
-                <div class="tile-icon"><i class="bi bi-file-earmark-arrow-down"></i></div>
-                <div class="tile-label">Import Data</div>
             </a>
         </div>
 
@@ -365,9 +395,23 @@ $overdue_pct = stat_percent($overdue_books, $borrowed_books);
         </div>
 
         <div class="col-md-4">
+            <a href="books.php" class="menu-tile">
+                <div class="tile-icon"><i class="bi bi-book"></i></div>
+                <div class="tile-label">Book Inventory</div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
             <a href="return.php" class="menu-tile">
                 <div class="tile-icon"><i class="bi bi-journal-arrow-down"></i></div>
                 <div class="tile-label">Return Book</div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="import.php" class="menu-tile">
+                <div class="tile-icon"><i class="bi bi-file-earmark-arrow-down"></i></div>
+                <div class="tile-label">Import Data</div>
             </a>
         </div>
 

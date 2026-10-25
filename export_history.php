@@ -30,6 +30,8 @@ if (!isset($_SESSION['staff_logged_in'])) {
 }
 
 include('db.php');
+include('student_functions.php');
+$has_email = st_email_ready($conn);
 
 // ---- Read + validate the options ----
 function valid_date($d) {
@@ -109,6 +111,7 @@ if ($match_count === 0) {
 $result = mysqli_query($conn,
     "SELECT borrowing.id, borrowing.borrow_date, borrowing.borrow_days, borrowing.due_date, borrowing.return_date,
             students.student_no, students.name AS student_name, students.course,
+            students.contact_number, " . ($has_email ? "students.email" : "NULL") . " AS email,
             books.acc_nos, books.class_no, books.title AS book_title, books.author,
             books.edition, books.volume, books.pub_year
      $from_sql
@@ -141,6 +144,7 @@ while ($r = mysqli_fetch_assoc($result)) {
     if ($r['student_no'] === null) $r['student_no'] = '—';
     if ($r['student_name'] === null) $r['student_name'] = '(Deleted student)';
     if ($r['acc_nos'] === null) $r['acc_nos'] = '—';
+    if (trim((string)$r['contact_number']) === '' && trim((string)$r['email']) === '') $r['contact_number'] = 'No contact on file';
     if ($r['book_title'] === null) $r['book_title'] = '(Deleted book)';
     $r['status'] = tx_status($r, $today);
     $r['days_late'] = tx_days_late($r, $today);
@@ -201,6 +205,14 @@ $cols = [
     ['key' => 'status',       'label' => 'Status',       'width' => 15, 'type' => 'status', 'align' => 'center'],
     ['key' => 'days_late',    'label' => 'Days Late',    'width' => 10, 'type' => 'late',   'align' => 'center'],
 ];
+
+// The overdue list is the one used to chase students, so it also carries their contact details
+if ($status === 'overdue') {
+    array_splice($cols, 4, 0, [
+        ['key' => 'contact_number', 'label' => 'Mobile No.', 'width' => 18, 'type' => 'text', 'align' => 'left'],
+        ['key' => 'email',          'label' => 'E-mail',     'width' => 28, 'type' => 'text', 'align' => 'left', 'wrap' => true],
+    ]);
+}
 
 // ===================================================================
 // CSV

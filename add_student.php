@@ -27,7 +27,11 @@ $level  = isset($_POST['year_level']) && in_array($_POST['year_level'], ST_LEVEL
 $course = st_text(isset($_POST['course']) ? $_POST['course'] : '');
 if ($course === '') $course = ST_COURSES[0];
 $course = st_cut($course, 100);
-$contact = st_norm_contact(isset($_POST['contact']) ? $_POST['contact'] : '');
+list($contact, $cst) = st_mobile(isset($_POST['contact']) ? $_POST['contact'] : '');
+if ($cst === 'bad') add_student_back('The mobile number does not look right. Please type it like 09171234567.');
+$has_email = st_email_ready($conn);
+list($email, $est) = $has_email ? st_email(isset($_POST['email']) ? $_POST['email'] : '') : [null, 'blank'];
+if ($est === 'bad') add_student_back('The e-mail address does not look right. Please type it like name@gmail.com.');
 
 if ($student_no === '' || $name === '') add_student_back('Please fill in the student number and the name.');
 
@@ -37,8 +41,13 @@ mysqli_stmt_execute($check);
 mysqli_stmt_store_result($check);
 if (mysqli_stmt_num_rows($check) > 0) add_student_back('Student number already exists!');
 
-$ins = mysqli_prepare($conn, "INSERT INTO students (student_no, name, gender, course, year_level, contact_number) VALUES (?, ?, ?, ?, ?, ?)");
-mysqli_stmt_bind_param($ins, 'ssssss', $student_no, $name, $gender, $course, $level, $contact);
+if ($has_email) {
+    $ins = mysqli_prepare($conn, "INSERT INTO students (student_no, name, gender, course, year_level, contact_number, email) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($ins, 'sssssss', $student_no, $name, $gender, $course, $level, $contact, $email);
+} else {
+    $ins = mysqli_prepare($conn, "INSERT INTO students (student_no, name, gender, course, year_level, contact_number) VALUES (?, ?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($ins, 'ssssss', $student_no, $name, $gender, $course, $level, $contact);
+}
 if (!mysqli_stmt_execute($ins)) add_student_back('The student could not be saved.');
 header('Location: students.php');
 exit();

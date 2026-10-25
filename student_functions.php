@@ -90,6 +90,51 @@ function st_norm_contact($raw) {
 }
 
 // ---------------------------------------------------------------------
+// Contact details given at the Borrow page (mobile number and / or e-mail)
+// ---------------------------------------------------------------------
+
+// A Philippine mobile number: 09171234567, 0917 123 4567, +63 917 123 4567, 9171234567 ...
+// Returns [clean number "09XXXXXXXXX" | null, 'ok' | 'blank' | 'bad']
+function st_mobile($raw) {
+    $s = st_text($raw);
+    if (st_blankish($s)) return [null, 'blank'];
+    $d = preg_replace('/[\s\-\.\(\)]/', '', $s);
+    if (preg_match('/^(?:\+?63|0)?(9\d{9})$/', $d, $m)) return ['0' . $m[1], 'ok'];
+    return [null, 'bad'];
+}
+
+// Returns [lower-case address | null, 'ok' | 'blank' | 'bad']
+function st_email($raw) {
+    $s = strtolower(st_text($raw));
+    if (st_blankish($s)) return [null, 'blank'];
+    if (mb_strlen($s) <= 150 && filter_var($s, FILTER_VALIDATE_EMAIL) && preg_match('/@[^@]+\.[a-z]{2,}$/', $s)) return [$s, 'ok'];
+    return [null, 'bad'];
+}
+
+// The students table needs an "email" column. It is added automatically the first time it is
+// needed (also after an older backup is restored), so there is no extra step for the staff.
+// Returns true when the column is there.
+function st_email_ready($conn) {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    $r = @mysqli_query($conn, "SHOW COLUMNS FROM students LIKE 'email'");
+    if ($r && mysqli_num_rows($r) > 0) return $ready = true;
+    @mysqli_query($conn, "ALTER TABLE students ADD COLUMN email VARCHAR(150) NULL AFTER contact_number");
+    $r = @mysqli_query($conn, "SHOW COLUMNS FROM students LIKE 'email'");
+    return $ready = ($r && mysqli_num_rows($r) > 0);
+}
+
+// Mobile number and e-mail as they are shown in a table cell. $none is the HTML used when there is neither.
+function st_contact_html($phone, $email, $none) {
+    $phone = trim((string)$phone); $email = trim((string)$email);
+    if ($phone === '' && $email === '') return $none;
+    $h = '';
+    if ($phone !== '') $h .= '<div class="contact-line" title="' . st_h($phone) . '"><i class="bi bi-telephone me-1 text-muted"></i>' . st_h($phone) . '</div>';
+    if ($email !== '') $h .= '<div class="contact-line" title="' . st_h($email) . '"><i class="bi bi-envelope me-1 text-muted"></i><a href="mailto:' . st_h($email) . '">' . st_h($email) . '</a></div>';
+    return $h;
+}
+
+// ---------------------------------------------------------------------
 // Names: "Last, First M. Suffix"
 // ---------------------------------------------------------------------
 

@@ -3,6 +3,9 @@ include('auth.php');
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 include('db.php');
+include('student_functions.php');
+include('reminder_functions.php');
+$has_email = st_email_ready($conn);
 
 // Get search and filter values
 $export_msg = isset($_GET['export_msg']) ? $_GET['export_msg'] : '';
@@ -18,13 +21,21 @@ if ($search) {
                 OR students.student_no LIKE '%$search_safe%'
                 OR books.title LIKE '%$search_safe%'
                 OR books.acc_nos LIKE '%$search_safe%'
-                OR books.class_no LIKE '%$search_safe%')";
+                OR books.class_no LIKE '%$search_safe%'
+                OR students.contact_number LIKE '%$search_safe%'" . ($has_email ? "
+                OR students.email LIKE '%$search_safe%'" : "") . ")";
 }
 
 if ($filter == 'borrowed') {
     $where[] = "borrowing.return_date IS NULL";
 } else if ($filter == 'returned') {
     $where[] = "borrowing.return_date IS NOT NULL";
+} else if ($filter == 'overdue') {
+    // same rule as the Main Menu: not returned yet and past the due date
+    $overdue_today = date('Y-m-d');
+    $where[] = "borrowing.return_date IS NULL AND borrowing.due_date IS NOT NULL AND borrowing.due_date < '$overdue_today'";
+} else {
+    $filter = 'all';
 }
 
 $where_clause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -32,26 +43,33 @@ $where_clause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 $query = "
     SELECT 
         borrowing.id,
+        borrowing.student_id,
         borrowing.borrow_date,
         borrowing.due_date,
         borrowing.return_date,
         COALESCE(students.name, '(Deleted student)') as student_name,
         COALESCE(students.student_no, '—') as student_no,
+        students.contact_number as contact_number,
+        " . ($has_email ? "students.email" : "NULL") . " as email,
         COALESCE(books.title, '(Deleted book)') as book_title,
         COALESCE(books.acc_nos, '—') as acc_nos
     FROM borrowing
     LEFT JOIN students ON borrowing.student_id = students.id
     LEFT JOIN books ON borrowing.book_id = books.id
     $where_clause
-    ORDER BY borrowing.borrow_date DESC, borrowing.id DESC
+    ORDER BY " . ($filter == 'overdue' ? "borrowing.due_date ASC, borrowing.id ASC" : "borrowing.borrow_date DESC, borrowing.id DESC") . "
 ";
 
 $result = mysqli_query($conn, $query);
 
+// who was already reminded by e-mail (overdue view only)
+$rm_last = ($filter == 'overdue') ? rm_last_sent($conn) : [];
+
 // Group transactions by borrow date
 $grouped = [];
 while ($row = mysqli_fetch_assoc($result)) {
-    $date = $row['borrow_date'];
+    // the overdue list is one list, the longest overdue first; every other view is grouped by borrow date
+    $date = ($filter == 'overdue') ? 'overdue' : $row['borrow_date'];
     $grouped[$date][] = $row;
 }
 ?>
@@ -61,8 +79,9 @@ while ($row = mysqli_fetch_assoc($result)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction History</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
@@ -156,6 +175,73 @@ while ($row = mysqli_fetch_assoc($result)) {
             font-weight: 600;
             padding: 0.4em 0.7em;
         }
+        .table-history {
+            table-layout: fixed;
+            width: 100%;
+            min-width: 860px;
+        }
+
+        .table-history th,
+        .table-history td {
+            overflow-wrap: anywhere;
+        }
+
+        /* the date columns never break a date over two lines */
+        .table-history td.nw {
+            white-space: nowrap;
+        }
+
+        .contact-line {
+            font-size: 0.88rem;
+            line-height: 1.35;
+        }
+
+        .contact-line a {
+            color: var(--tcm-purple);
+        }
+
+        .btn-remind {
+            border: 1px solid var(--tcm-purple);
+            color: var(--tcm-purple);
+            background: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.55rem;
+            margin-top: 0.3rem;
+        }
+
+        .btn-remind:hover {
+            background: var(--tcm-purple);
+            color: #fff;
+        }
+
+        .rm-status {
+            font-size: 0.75rem;
+            color: #1e8449;
+            margin-top: 0.2rem;
+        }
+
+        .rm-preview {
+            background: #faf8fd;
+            border: 1px solid #e2d9ee;
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            white-space: pre-wrap;
+            font-size: 0.88rem;
+            max-height: 260px;
+            overflow: auto;
+        }
+
+        .no-contact {
+            display: inline-block;
+            background-color: #fff3d1;
+            color: #8a6100;
+            font-weight: 600;
+            font-size: 0.78rem;
+            border-radius: 6px;
+            padding: 0.3em 0.55em;
+        }
+
         .badge-overdue {
             background-color: rgba(184, 28, 28, 0.9);
             color: #fff;
@@ -314,6 +400,7 @@ while ($row = mysqli_fetch_assoc($result)) {
             <select name="filter" class="form-select">
                 <option value="all" <?php echo $filter == 'all' ? 'selected' : ''; ?>>All Transactions</option>
                 <option value="borrowed" <?php echo $filter == 'borrowed' ? 'selected' : ''; ?>>Still Borrowed</option>
+                <option value="overdue" <?php echo $filter == 'overdue' ? 'selected' : ''; ?>>Overdue</option>
                 <option value="returned" <?php echo $filter == 'returned' ? 'selected' : ''; ?>>Returned</option>
             </select>
         </div>
@@ -365,14 +452,54 @@ while ($row = mysqli_fetch_assoc($result)) {
             <!-- Date Group Header -->
             <div class="d-flex align-items-center gap-3 mb-2 mt-4">
                 <span class="date-group-label fs-6">
-                    <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y', strtotime($date)); ?>
+                    <?php if ($date === 'overdue'): ?>
+                        <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Overdue books &mdash; the longest overdue first
+                    <?php else: ?>
+                        <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y', strtotime($date)); ?>
+                    <?php endif; ?>
                 </span>
                 <span class="badge badge-count"><?php echo count($transactions); ?> transaction(s)</span>
             </div>
+            <?php if ($date === 'overdue'): ?>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <span class="small text-muted">Students with an e-mail can be reminded by e-mail. Use <strong>Send reminder</strong> in the Contact column, or remind everyone at once.</span>
+                    <button type="button" class="btn btn-remind" id="remind-all-btn" style="margin-top:0;"><i class="bi bi-envelope-paper me-1"></i>Remind all</button>
+                </div>
+            <?php
+                $no_contact_students = [];
+                foreach ($transactions as $t) {
+                    if (trim((string)$t['contact_number']) === '' && trim((string)$t['email']) === '') $no_contact_students[$t['student_no'] . '|' . $t['student_name']] = true;
+                }
+                if ($no_contact_students): ?>
+                <div class="alert alert-warning py-2 small mb-2">
+                    <i class="bi bi-info-circle me-1"></i><strong><?php echo count($no_contact_students); ?> student<?php echo count($no_contact_students) == 1 ? ' has' : 's have'; ?> no contact on file.</strong>
+                    Follow up in person or through their class, and ask for a number or e-mail when they come in.
+                </div>
+            <?php endif; endif; ?>
 
             <div class="card card-table mb-2">
                 <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
+                    <div class="table-responsive">
+                    <table class="table table-hover mb-0 table-history">
+                        <colgroup>
+                            <?php if ($filter == 'overdue'): ?>
+                            <col style="width: 17%">
+                            <col style="width: 19%">
+                            <col style="width: 10%">
+                            <col style="width: 11%">
+                            <col style="width: 11%">
+                            <col style="width: 20%">
+                            <col style="width: 12%">
+                            <?php else: ?>
+                            <col style="width: 20%">
+                            <col style="width: 22%">
+                            <col style="width: 11%">
+                            <col style="width: 12%">
+                            <col style="width: 12%">
+                            <col style="width: 12%">
+                            <col style="width: 11%">
+                            <?php endif; ?>
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>Student</th>
@@ -380,7 +507,11 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 <th>Acc. No(s).</th>
                                 <th>Date Borrowed</th>
                                 <th>Due Date</th>
+                                <?php if ($filter == 'overdue'): ?>
+                                <th>Contact</th>
+                                <?php else: ?>
                                 <th>Date Returned</th>
+                                <?php endif; ?>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -394,17 +525,34 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 </td>
                                 <td><?php echo htmlspecialchars($t['book_title']); ?></td>
                                 <td><?php echo htmlspecialchars($t['acc_nos']); ?></td>
-                                <td><?php echo date('M d, Y', strtotime($t['borrow_date'])); ?></td>
-                                <td>
+                                <td class="nw"><?php echo date('M d, Y', strtotime($t['borrow_date'])); ?></td>
+                                <td class="nw">
                                     <?php echo $t['due_date'] 
                                         ? date('M d, Y', strtotime($t['due_date'])) 
                                         : '<span class="text-muted">—</span>'; ?>
                                 </td>
+                                <?php if ($filter == 'overdue'): ?>
                                 <td>
+                                    <?php echo st_contact_html($t['contact_number'], $t['email'], '<span class="no-contact">No contact on file</span>'); ?>
+                                    <?php
+                                    list($rm_em, $rm_st) = st_email($t['email']);
+                                    if ($rm_st === 'ok' && !empty($t['student_id'])):
+                                        $rm_sid = (int)$t['student_id'];
+                                        $rm_when_txt = isset($rm_last[$rm_sid]) ? rm_when($rm_last[$rm_sid]) : '';
+                                    ?>
+                                    <div class="rm-box" data-student="<?php echo $rm_sid; ?>">
+                                        <button type="button" class="btn btn-remind rm-open" data-student="<?php echo $rm_sid; ?>"><i class="bi bi-envelope-paper me-1"></i><span class="rm-label"><?php echo $rm_when_txt ? 'Send again' : 'Send reminder'; ?></span></button>
+                                        <div class="rm-status"<?php echo $rm_when_txt ? '' : ' hidden'; ?>><i class="bi bi-check2-circle me-1"></i><span class="rm-when"><?php echo $rm_when_txt ? 'Reminded ' . st_h($rm_when_txt) : ''; ?></span></div>
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                                <?php else: ?>
+                                <td class="nw">
                                     <?php echo $t['return_date'] 
                                         ? date('M d, Y', strtotime($t['return_date'])) 
                                         : '<span class="text-muted">—</span>'; ?>
                                 </td>
+                                <?php endif; ?>
                                 <td>
                                     <?php 
                                     $today = date('Y-m-d');
@@ -412,6 +560,8 @@ while ($row = mysqli_fetch_assoc($result)) {
                                         <span class="badge badge-returned">Returned</span>
                                     <?php elseif ($t['due_date'] && $today > $t['due_date']): ?>
                                         <span class="badge badge-overdue">Overdue</span>
+                                        <?php $days_late = (int)(new DateTime($t['due_date']))->diff(new DateTime($today))->days; ?>
+                                        <div class="small text-danger mt-1"><?php echo $days_late . ' day' . ($days_late == 1 ? '' : 's') . ' late'; ?></div>
                                     <?php else: ?>
                                         <span class="badge badge-still-borrowed">Still Borrowed</span>
                                     <?php endif; ?>
@@ -420,6 +570,7 @@ while ($row = mysqli_fetch_assoc($result)) {
                         <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -429,7 +580,7 @@ while ($row = mysqli_fetch_assoc($result)) {
 
 <?php
 $export_today = date('Y-m-d');
-$export_status_default = in_array($filter, ['borrowed', 'returned'], true) ? $filter : 'all';
+$export_status_default = in_array($filter, ['borrowed', 'returned', 'overdue'], true) ? $filter : 'all';
 ?>
 <!-- Export dialog -->
 <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
@@ -493,7 +644,7 @@ $export_status_default = in_array($filter, ['borrowed', 'returned'], true) ? $fi
                         <select id="export-status" name="status" class="form-select">
                             <option value="all" <?php echo $export_status_default == 'all' ? 'selected' : ''; ?>>All statuses</option>
                             <option value="borrowed" <?php echo $export_status_default == 'borrowed' ? 'selected' : ''; ?>>Still borrowed (includes overdue)</option>
-                            <option value="overdue">Overdue only</option>
+                            <option value="overdue" <?php echo $export_status_default == 'overdue' ? 'selected' : ''; ?>>Overdue only</option>
                             <option value="returned" <?php echo $export_status_default == 'returned' ? 'selected' : ''; ?>>Returned only</option>
                         </select>
                     </div>
@@ -525,7 +676,7 @@ $export_status_default = in_array($filter, ['borrowed', 'returned'], true) ? $fi
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
 (function () {
     var TODAY = '<?php echo $export_today; ?>';
@@ -642,5 +793,164 @@ $export_status_default = in_array($filter, ['borrowed', 'returned'], true) ? $fi
 })();
 </script>
 
+<?php if ($filter == 'overdue'): ?>
+<!-- Send one reminder -->
+<div class="modal fade" id="reminderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header export-header">
+                <h5 class="modal-title"><i class="bi bi-envelope-paper me-2"></i>Send overdue reminder</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="rm-problem" class="alert alert-warning py-2 small" hidden></div>
+                <div class="small mb-1"><strong>To:</strong> <span id="rm-to">…</span></div>
+                <div class="small mb-1"><strong>From:</strong> <span id="rm-from">…</span></div>
+                <div class="small mb-2"><strong>Subject:</strong> <span id="rm-subject">…</span></div>
+                <div id="rm-body" class="rm-preview mb-3">Loading…</div>
+                <label class="form-label small mb-1" for="rm-note">Add a short note <span class="text-muted">(optional)</span></label>
+                <textarea id="rm-note" class="form-control form-control-sm" rows="2" maxlength="300" placeholder="e.g. Please return the book before Friday."></textarea>
+                <div id="rm-result" class="mt-3" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rm-close">Cancel</button>
+                <button type="button" class="btn btn-export-go" id="rm-send" disabled><i class="bi bi-send me-1"></i>Send e-mail</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remind everybody -->
+<div class="modal fade" id="remindAllModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header export-header">
+                <h5 class="modal-title"><i class="bi bi-envelope-paper me-2"></i>Remind all overdue students</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="ra-info" class="export-count">Checking…</div>
+                <div id="ra-result" class="mt-3" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ra-close">Cancel</button>
+                <button type="button" class="btn btn-export-go" id="ra-send" disabled><i class="bi bi-send me-1"></i>Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    function post(data) {
+        return fetch('send_reminder.php', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+            body: new URLSearchParams(data).toString()
+        }).then(function (r) { return r.json(); });
+    }
+    function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function show(el, kind, html) { el.hidden = false; el.className = 'alert alert-' + kind + ' py-2 small mt-3'; el.innerHTML = html; }
+
+    // ---------- one student ----------
+    var modalEl = document.getElementById('reminderModal');
+    var modal = new bootstrap.Modal(modalEl);
+    var sendBtn = document.getElementById('rm-send');
+    var noteEl = document.getElementById('rm-note');
+    var result = document.getElementById('rm-result');
+    var problem = document.getElementById('rm-problem');
+    var current = 0, timer = null, canSend = false;
+
+    function loadPreview() {
+        post({ action: 'preview', student_id: current, note: noteEl.value }).then(function (d) {
+            if (!d.ok) { document.getElementById('rm-body').textContent = d.error || 'Could not prepare the e-mail.'; sendBtn.disabled = true; return; }
+            document.getElementById('rm-to').textContent = d.name + ' <' + d.to + '>';
+            document.getElementById('rm-from').textContent = d.from ? 'College of Law Library <' + d.from + '>' : '(not set up)';
+            document.getElementById('rm-subject').textContent = d.subject;
+            document.getElementById('rm-body').textContent = d.body;
+            problem.hidden = !d.problem;
+            problem.innerHTML = d.problem ? esc(d.problem) + ' <a href="backup.php">Open the Backup page</a>' : '';
+            canSend = !d.problem;
+            sendBtn.disabled = !canSend;
+        }).catch(function () { document.getElementById('rm-body').textContent = 'Could not reach the system. Please log in again.'; });
+    }
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.rm-open');
+        if (!b) return;
+        current = parseInt(b.getAttribute('data-student'), 10);
+        noteEl.value = ''; result.hidden = true; sendBtn.disabled = true; sendBtn.hidden = false;
+        document.getElementById('rm-close').textContent = 'Cancel';
+        ['rm-to', 'rm-from', 'rm-subject'].forEach(function (i) { document.getElementById(i).textContent = '…'; });
+        document.getElementById('rm-body').textContent = 'Loading…';
+        problem.hidden = true;
+        modal.show();
+        loadPreview();
+    });
+
+    noteEl.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(loadPreview, 350); });
+
+    sendBtn.addEventListener('click', function () {
+        if (!canSend) return;
+        sendBtn.disabled = true;
+        var old = sendBtn.innerHTML;
+        sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending…';
+        post({ action: 'send', student_id: current, note: noteEl.value }).then(function (d) {
+            sendBtn.innerHTML = old;
+            if (d.ok) {
+                show(result, 'success', '<i class="bi bi-check-circle me-1"></i>' + esc(d.message) + '. It can take a minute to arrive. The student should also check the Spam folder.');
+                document.querySelectorAll('.rm-box[data-student="' + current + '"]').forEach(function (box) {
+                    box.querySelector('.rm-label').textContent = 'Send again';
+                    box.querySelector('.rm-status').hidden = false;
+                    box.querySelector('.rm-when').textContent = 'Reminded ' + d.when;
+                });
+                sendBtn.hidden = true;
+                document.getElementById('rm-close').textContent = 'Close';
+            } else {
+                show(result, 'danger', esc(d.error || 'The e-mail could not be sent.'));
+                sendBtn.disabled = false;
+            }
+        }).catch(function () { sendBtn.innerHTML = old; sendBtn.disabled = false; show(result, 'danger', 'Could not reach the system. Please log in again.'); });
+    });
+
+    // ---------- everybody ----------
+    var allEl = document.getElementById('remindAllModal');
+    var allModal = new bootstrap.Modal(allEl);
+    var raInfo = document.getElementById('ra-info'), raSend = document.getElementById('ra-send'), raRes = document.getElementById('ra-result');
+    var raBtn = document.getElementById('remind-all-btn');
+
+    if (raBtn) raBtn.addEventListener('click', function () {
+        raRes.hidden = true; raSend.hidden = false; raSend.disabled = true;
+        document.getElementById('ra-close').textContent = 'Cancel';
+        raInfo.className = 'export-count'; raInfo.textContent = 'Checking…';
+        allModal.show();
+        post({ action: 'count' }).then(function (d) {
+            if (!d.ok) { raInfo.className = 'export-count bad'; raInfo.textContent = d.error || 'Could not check.'; return; }
+            var extra = '';
+            if (d.recent) extra += '<br>' + d.recent + ' student' + (d.recent === 1 ? ' was' : 's were') + ' reminded in the last 24 hours and will be skipped.';
+            if (d.no_email) extra += '<br>' + d.no_email + ' student' + (d.no_email === 1 ? ' has' : 's have') + ' no e-mail: follow up with ' + (d.no_email === 1 ? 'that student' : 'them') + ' in person.';
+            if (d.problem) { raInfo.className = 'export-count bad'; raInfo.innerHTML = esc(d.problem) + ' <a href="backup.php">Open the Backup page</a>'; return; }
+            if (d.to_send === 0) { raInfo.className = 'export-count warn'; raInfo.innerHTML = 'There is nobody to remind right now.' + extra; return; }
+            raInfo.className = 'export-count ok';
+            raInfo.innerHTML = '<strong>' + d.to_send + '</strong> e-mail' + (d.to_send === 1 ? '' : 's') + ' will be sent, one to each overdue student that has an e-mail.' + extra;
+            raSend.disabled = false;
+        }).catch(function () { raInfo.className = 'export-count bad'; raInfo.textContent = 'Could not reach the system. Please log in again.'; });
+    });
+
+    raSend.addEventListener('click', function () {
+        raSend.disabled = true;
+        var old = raSend.innerHTML;
+        raSend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending…';
+        post({ action: 'remind_all' }).then(function (d) {
+            raSend.innerHTML = old; raSend.hidden = true;
+            document.getElementById('ra-close').textContent = 'Close';
+            var msg = '<strong>' + (d.sent || 0) + '</strong> reminder' + (d.sent === 1 ? '' : 's') + ' sent.';
+            if (d.failed) msg += ' <strong>' + d.failed + '</strong> could not be sent: ' + esc(d.error || '');
+            show(raRes, d.failed || !d.ok && d.error ? 'warning' : 'success', msg + ' <a href="" onclick="location.reload();return false;">Reload the list</a>');
+        }).catch(function () { raSend.innerHTML = old; raSend.disabled = false; show(raRes, 'danger', 'Could not reach the system. Please log in again.'); });
+    });
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

@@ -666,8 +666,23 @@ function bk_friendly_mail_error($msg) {
     return 'The e-mail could not be sent: ' . $msg;
 }
 
+// Wraps a plain-text message in a simple e-mail layout with the College of Law logo at the top
+function bk_mail_html($text, $logo_src) {
+    $h = nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'), false);
+    return '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f1f8;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1f8;padding:20px 0;"><tr><td align="center">'
+        . '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;font-family:Segoe UI,Arial,sans-serif;">'
+        . '<tr><td style="background:#4B2E83;padding:14px 20px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr>'
+        . '<td style="padding-right:12px;"><img src="' . $logo_src . '" width="52" height="52" alt="College of Law" style="display:block;border:0;"></td>'
+        . '<td style="color:#ffffff;"><div style="font-size:17px;font-weight:bold;">College of Law Library</div>'
+        . '<div style="font-size:12px;color:#D4A72C;">The College of Maasin</div></td></tr></table></td></tr>'
+        . '<tr><td style="padding:22px 24px;font-size:14px;line-height:1.55;color:#222222;">' . $h . '</td></tr>'
+        . '</table></td></tr></table></body></html>';
+}
+
 // Returns [ok, message]
-function bk_send_mail($to, $subject, $body, $attachment = null) {
+// $opts: 'from_name' (display name of the sender), 'reply_to' (true = replies go to the sending Gmail)
+function bk_send_mail($to, $subject, $body, $attachment = null, $opts = []) {
     $s = bk_settings_load();
     if (!bk_email_configured($s)) return [false, 'E-mail is not set up yet. Fill in the Gmail address and App Password on the Backup page.'];
     list($rcpt, $bad) = bk_parse_recipients($to);
@@ -691,10 +706,20 @@ function bk_send_mail($to, $subject, $body, $attachment = null) {
         else { $mail->SMTPSecure = ''; $mail->SMTPAutoTLS = false; }
         $mail->Timeout = 25;
         $mail->CharSet = 'UTF-8';
-        $mail->setFrom($s['smtp_user'], 'TCM Law Library Backup');
+        $mail->setFrom($s['smtp_user'], isset($opts['from_name']) ? $opts['from_name'] : 'TCM Law Library Backup');
+        if (!empty($opts['reply_to'])) $mail->addReplyTo($s['smtp_user']);
         foreach ($rcpt as $r) $mail->addAddress($r);
         $mail->Subject = $subject;
-        $mail->Body = $body;
+        // HTML version with the College of Law logo; the plain-text version stays as the fallback
+        $logo = BK_APP_DIR . '/assets/images/col_logo.png';
+        if (is_file($logo)) {
+            $mail->addEmbeddedImage($logo, 'lawlogo', 'col_logo.png', 'base64', 'image/png');
+            $mail->isHTML(true);
+            $mail->Body = bk_mail_html($body, 'cid:lawlogo');
+            $mail->AltBody = $body;
+        } else {
+            $mail->Body = $body;
+        }
         if ($attachment) $mail->addAttachment($attachment);
         $mail->send();
         return [true, 'Sent to ' . implode(', ', $rcpt)];

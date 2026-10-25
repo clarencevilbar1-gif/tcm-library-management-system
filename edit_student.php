@@ -13,7 +13,8 @@ $student = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 if (!$student) { header('Location: students.php'); exit(); }
 
 $ready = st_columns_ready($conn);
-$student += ['gender' => '', 'year_level' => '', 'contact_number' => ''];
+$has_email = st_email_ready($conn);
+$student += ['gender' => '', 'year_level' => '', 'contact_number' => '', 'email' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && $ready) {
     $student_no = st_cut(st_text($_POST['student_no']), 50);
@@ -21,7 +22,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $ready) {
     $course = st_cut(st_text($_POST['course']), 100);
     $gender = in_array($_POST['gender'], ST_GENDERS, true) ? $_POST['gender'] : null;
     $level = in_array($_POST['year_level'], ST_LEVELS, true) ? $_POST['year_level'] : null;
-    $contact = st_norm_contact($_POST['contact']);
+    // a number that is already saved is kept as it is; a newly typed one must look like a mobile number
+    $typed = st_text($_POST['contact']);
+    if ($typed !== '' && $typed === trim((string)$student['contact_number'])) { $contact = $typed; $cst = 'ok'; }
+    else list($contact, $cst) = st_mobile($typed);
+    $email = trim((string)$student['email']) === '' ? null : $student['email'];
+    $est = 'blank';
+    if ($has_email) {
+        $typed_email = st_text(isset($_POST['email']) ? $_POST['email'] : '');
+        list($email, $est) = st_email($typed_email);
+    }
+    if ($cst === 'bad' || $est === 'bad') {
+        $what = $cst === 'bad' ? 'The mobile number does not look right. Please type it like 09171234567.' : 'The e-mail address does not look right. Please type it like name@gmail.com.';
+        echo "<script>alert(" . json_encode($what) . "); window.location='edit_student.php?id=$id';</script>";
+        exit();
+    }
 
     // Check if student number already exists on another student
     $check = mysqli_prepare($conn, "SELECT id FROM students WHERE student_no = ? AND id != ?");
@@ -35,8 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $ready) {
         echo "<script>alert('Student number already exists on another record!'); window.location='edit_student.php?id=$id';</script>";
         exit();
     } else {
-        $upd = mysqli_prepare($conn, "UPDATE students SET student_no = ?, name = ?, gender = ?, course = ?, year_level = ?, contact_number = ? WHERE id = ?");
-        mysqli_stmt_bind_param($upd, 'ssssssi', $student_no, $name, $gender, $course, $level, $contact, $id);
+        if ($has_email) {
+            $upd = mysqli_prepare($conn, "UPDATE students SET student_no = ?, name = ?, gender = ?, course = ?, year_level = ?, contact_number = ?, email = ? WHERE id = ?");
+            mysqli_stmt_bind_param($upd, 'sssssssi', $student_no, $name, $gender, $course, $level, $contact, $email, $id);
+        } else {
+            $upd = mysqli_prepare($conn, "UPDATE students SET student_no = ?, name = ?, gender = ?, course = ?, year_level = ?, contact_number = ? WHERE id = ?");
+            mysqli_stmt_bind_param($upd, 'ssssssi', $student_no, $name, $gender, $course, $level, $contact, $id);
+        }
         mysqli_stmt_execute($upd);
         header('Location: students.php');
         exit();
@@ -58,8 +78,9 @@ function st_options($list, $current) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Student</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
@@ -145,10 +166,18 @@ function st_options($list, $current) {
                 </select>
             </div>
             <div class="mb-3">
-                <label class="form-label">Contact Number <span class="text-muted small">(optional)</span></label>
-                <input type="text" name="contact" class="form-control" maxlength="20"
+                <label class="form-label">Mobile Number <span class="text-muted small">(optional)</span></label>
+                <input type="text" name="contact" class="form-control" maxlength="20" placeholder="09171234567" inputmode="tel"
                        value="<?php echo st_h($student['contact_number']); ?>">
             </div>
+            <?php if ($has_email): ?>
+            <div class="mb-3">
+                <label class="form-label">E-mail <span class="text-muted small">(optional)</span></label>
+                <input type="text" name="email" class="form-control" maxlength="150" placeholder="name@gmail.com" inputmode="email"
+                       value="<?php echo st_h($student['email']); ?>">
+                <div class="form-text">Emptying a box removes that contact from the record.</div>
+            </div>
+            <?php endif; ?>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-tcm-gold w-100"<?php echo $ready ? '' : ' disabled'; ?>>Save Changes</button>
                 <a href="students.php" class="btn btn-outline-secondary w-100">Cancel</a>

@@ -60,8 +60,19 @@ if errorlevel 1 goto :webfail
 :webready
 rem --- can the library data be read?
 set "DBOK="
-if exist "%PHP%" for /f "delims=" %%R in ('"%PHP%" "%~dp0db_check.php" 2^>nul') do if "%%R"=="DBOK" set "DBOK=1"
+if not exist "%PHP%" goto :checked
+"%PHP%" "%~dp0db_check.php" > "%TEMP%\tcm_dbcheck.txt" 2>nul
+findstr /c:"DBOK" "%TEMP%\tcm_dbcheck.txt" >nul 2>&1
+if not errorlevel 1 set "DBOK=1"
+if defined DBOK del "%TEMP%\tcm_dbcheck.txt" >nul 2>&1
+:checked
 if defined DBOK goto :open
+echo.
+echo  [Details for the developer]
+echo  PHP file : %PHP%
+if exist "%PHP%" (echo  PHP found : yes) else (echo  PHP found : NO)
+echo  The check printed:
+if exist "%TEMP%\tcm_dbcheck.txt" type "%TEMP%\tcm_dbcheck.txt"
 echo.
 echo  The database is running, but the library records cannot be read.
 echo  Please double-click  FIX LIBRARY  (fix_mysql.bat).

@@ -17,7 +17,8 @@ function eh($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
 if (!bk_is_local_request()) {
     http_response_code(403);
-    echo '<!DOCTYPE html><meta charset="utf-8"><title>Emergency restore</title><body style="font-family:Segoe UI,Arial;padding:2rem">'
+    echo '<!DOCTYPE html><meta charset="utf-8"><title>Emergency restore</title>
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png"><body style="font-family:Segoe UI,Arial;padding:2rem">'
        . '<h2>This page only works on the computer that runs the system.</h2>'
        . '<p>Open <strong>http://localhost/' . eh(basename(BK_APP_DIR)) . '/emergency_restore.php</strong> on that computer.</p></body>';
     exit();
@@ -89,6 +90,7 @@ usort($all, function ($a, $b) { return $b['ts'] <=> $a['ts']; });
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Emergency restore — TCM Law Library</title>
+<link rel="icon" type="image/png" href="assets/images/col_logo.png">
 <style>
     body { font-family: "Segoe UI", Arial, sans-serif; background: #f6f4f9; margin: 0; color: #222; }
     header { background: #4B2E83; color: #fff; padding: 1rem 1.5rem; }

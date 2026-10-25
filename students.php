@@ -3,6 +3,7 @@ include('auth.php');
 include('db.php'); 
 include('student_functions.php');
 $cols_ready = st_columns_ready($conn);
+$has_email = st_email_ready($conn);
 
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $view = isset($_GET['view']) ? $_GET['view'] : 'active';
@@ -13,8 +14,9 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Records</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/images/col_logo.png">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/header.css">
     <style>
         :root {
@@ -138,6 +140,14 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
         .students-wrap .table tbody td, .students-wrap .table thead th { padding-left: 0.6rem; padding-right: 0.6rem; }
         .students-wrap .table td.name-cell { text-align: left; }
         .students-wrap .table th.name-head { text-align: left; }
+        .students-wrap .table { table-layout: fixed; min-width: 1180px; }
+        .students-wrap .table td, .students-wrap .table th { overflow-wrap: anywhere; }
+        .students-wrap .table td.contact-cell { font-size: 0.85rem; }
+        .students-wrap .contact-cell .contact-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+        .students-wrap td.actions-cell { white-space: nowrap; }
+        .students-wrap .borrow-cell .badge { margin-top: 0.25rem; }
+        .students-wrap .contact-line a { color: var(--tcm-purple); text-decoration: none; }
+        .students-wrap .contact-line a:hover { text-decoration: underline; }
 
         .badge-can-borrow {
             background-color: rgba(75, 46, 131, 0.12);
@@ -259,7 +269,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                 type="text" 
                 name="search" 
                 class="form-control" 
-                placeholder="Search by name or student number..."
+                placeholder="Search by name, student number or contact..."
                 value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>"
             >
             <button type="submit" class="btn btn-tcm-search"><i class="bi bi-search"></i></button>
@@ -288,7 +298,12 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
     <!-- Students Table -->
     <div class="card card-table">
         <div class="card-body p-0">
+            <div class="table-responsive">
             <table class="table table-hover mb-0">
+                <colgroup>
+                    <col style="width: 9%"><col style="width: 17%"><col style="width: 8%"><col style="width: 9%"><col style="width: 7%">
+                    <col style="width: 16%"><col style="width: 9%"><col style="width: 9%"><col style="width: 16%">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Student No.</th>
@@ -296,8 +311,8 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                         <th>Gender</th>
                         <th>Course</th>
                         <th>Year Level</th>
-                        <th>Books Borrowed</th> 
-                        <th>Borrow Status</th>
+                        <th class="contact-head">Contact</th>
+                        <th>Books Borrowed</th>
                         <th>Record Status</th>
                         <th>Actions</th>
                     </tr>
@@ -308,7 +323,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 
                 if ($search) {
                     $search_safe = mysqli_real_escape_string($conn, $search);
-                    $conditions[] = "(name LIKE '%$search_safe%' OR student_no LIKE '%$search_safe%' OR course LIKE '%$search_safe%'" . ($cols_ready ? " OR year_level LIKE '%$search_safe%' OR gender LIKE '$search_safe%'" : "") . ")";
+                    $conditions[] = "(name LIKE '%$search_safe%' OR student_no LIKE '%$search_safe%' OR course LIKE '%$search_safe%' OR contact_number LIKE '%$search_safe%'" . ($has_email ? " OR email LIKE '%$search_safe%'" : "") . ($cols_ready ? " OR year_level LIKE '%$search_safe%' OR gender LIKE '$search_safe%'" : "") . ")";
                 }
 
                 if ($view == 'active') {
@@ -359,6 +374,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                                      : ($g === 'Female' ? '<span class="badge badge-female">Female</span>'
                                      : ($g !== '' && $g !== null ? st_h($g) : '<span class="text-muted">—</span>'));
                         $lvl = isset($row['year_level']) && $row['year_level'] !== '' && $row['year_level'] !== null ? st_h($row['year_level']) : '<span class="text-muted">—</span>';
+                        $contact_cell = st_contact_html($row['contact_number'], $has_email ? $row['email'] : '', '<span class="text-muted">—</span>');
                         $course_cell = $row['course'] !== '' ? st_h($row['course']) : '<span class="text-muted">—</span>';
 
                         echo "<tr>
@@ -367,10 +383,10 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                             <td>{$gender_cell}</td>
                             <td>{$course_cell}</td>
                             <td>{$lvl}</td>
-                            <td>{$borrowed} / 3</td>
-                            <td>{$status}</td>
+                            <td class='contact-cell'>{$contact_cell}</td>
+                            <td class='borrow-cell'>{$borrowed} / 3<br>{$status}</td>
                             <td>{$record_status}</td>
-                            <td>
+                            <td class='actions-cell'>
                                 <a href='edit_student.php?id={$row['id']}' 
                                 class='btn btn-sm btn-edit'>
                                 Edit
@@ -386,6 +402,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                 ?>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -447,9 +464,18 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
                         <?php foreach (ST_COURSES as $o) echo '<option>' . st_h($o) . '</option>'; ?>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Contact Number <span class="text-muted small">(optional)</span></label>
-                    <input type="text" name="contact" class="form-control" maxlength="20">
+                <div class="row g-2 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">Mobile Number <span class="text-muted small">(optional)</span></label>
+                        <input type="text" name="contact" class="form-control" maxlength="20" placeholder="09171234567" inputmode="tel">
+                    </div>
+                    <?php if ($has_email): ?>
+                    <div class="col-sm-6">
+                        <label class="form-label">E-mail <span class="text-muted small">(optional)</span></label>
+                        <input type="text" name="email" class="form-control" maxlength="150" placeholder="name@gmail.com" inputmode="email">
+                    </div>
+                    <?php endif; ?>
+                    <div class="form-text">The contact can also be collected when the student first borrows a book.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -461,7 +487,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
 // shows how the typed name will be saved: Last, First M. Suffix
 (function () {

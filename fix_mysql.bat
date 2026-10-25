@@ -194,7 +194,10 @@ goto :waitloop
 :dbcheck
 set "DBOK="
 if not exist "%PHP%" exit /b 0
-for /f "delims=" %%R in ('"%PHP%" "%~dp0db_check.php" 2^>nul') do if "%%R"=="DBOK" set "DBOK=1"
+"%PHP%" "%~dp0db_check.php" > "%TEMP%\tcm_dbcheck.txt" 2>nul
+findstr /c:"DBOK" "%TEMP%\tcm_dbcheck.txt" >nul 2>&1
+if not errorlevel 1 set "DBOK=1"
+del "%TEMP%\tcm_dbcheck.txt" >nul 2>&1
 if defined DBOK exit /b 0
 exit /b 1
 
