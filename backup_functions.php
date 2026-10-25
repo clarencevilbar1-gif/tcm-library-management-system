@@ -386,7 +386,7 @@ function bk_collect_files() {
 // Gmail refuses an attachment when a .zip contains certain file types (scripts and programs),
 // even though they are harmless here. In the copy that is e-mailed, such files get ".txt" added to
 // their name; a restore takes the ".txt" off again.
-define('BK_MAIL_BLOCKED_EXT', '/\.(ade|adp|apk|appx|bat|cab|chm|cmd|com|cpl|dll|dmg|ex|ex_|exe|hta|ins|isp|iso|jar|js|jse|lib|lnk|mde|msc|msi|msp|mst|nsh|pif|scr|sct|shb|sys|vb|vbe|vbs|vxd|wsc|wsf|wsh)$/i');
+define('BK_MAIL_BLOCKED_EXT', '/\.(ade|adp|apk|appx|appxbundle|bat|cab|chm|cmd|com|cpl|dll|dmg|ex|ex_|exe|hta|ins|isp|iso|jar|js|jse|lib|lnk|mde|msc|msi|msix|msixbundle|msp|mst|nsh|pif|ps1|scr|sct|shb|sys|vb|vbe|vbs|vxd|wsc|wsf|wsh)$/i');
 
 // Writes the backup .zip. $mailSafe = true makes the Gmail-friendly variant. Returns bool.
 function bk_write_zip($part, $dbFiles, $dbDir, $files, $manifest, $password, $mailSafe) {
